@@ -8,6 +8,16 @@ farm, journal, bundles, calendar and backpack, live.
 
 **Modded for Android by [breepear](https://github.com/breepear).**
 
+> [!IMPORTANT]
+> **Stardual Valley only works with the Android version of Stardew Valley,
+> running through SMAPI Launcher.** SMAPI Launcher is required: without it the
+> mod can't load and Stardual Valley has nothing to connect to.
+>
+> **Playing the PC (Steam) version of Stardew through Cinderbox or WEMU? This
+> isn't for you. Use JoeCorrell's original
+> [AYN Thor DualScreen Mods](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods)
+> instead.** It's built for the PC version and supports it properly.
+
 ## Credits
 
 Stardual Valley is built on
@@ -26,8 +36,8 @@ please open an issue.
 Get the latest **Stardual Valley APK** from the
 [Releases page](../../releases/latest). You also need the Stardew mod from the
 [upstream v2.0 release](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods/releases/tag/v2.0)
-(`StardewDualScreenMod.zip`). See [Running on Android](#running-on-android-ayn-thor)
-for the full setup.
+(`StardewDualScreenMod.zip`), and Stardew Valley running through SMAPI Launcher.
+Follow [Setup](#setup) below.
 
 ## What changed in this fork
 
@@ -47,43 +57,98 @@ for the full setup.
   the Stardew pages. This replaces the upstream multi-game list, so the app only
   ever shows Stardew. The screen is `overlay/src/com/stardual/StardualActivity.java`,
   which becomes the app's launcher activity (see [Building the app](#building-the-app)).
-- **Android setup docs:** below.
+- **Android setup docs:** see [Setup](#setup).
 
 No code changes were needed to run on Android. The upstream v2.0 release mod
 and app work as they are.
 
-## Running on Android (AYN Thor)
+## Requirements
+
+Stardual Valley needs all of these:
+
+- **An AYN Thor** (or another dual-screen Android device; only the Thor is tested).
+- **Stardew Valley for Android**, bought from Google Play (or the Galaxy
+  Store), version 1.6.15.3 or later. The PC version doesn't work with this app.
+- **SMAPI Launcher with SMAPI for Android installed.** Required. This is what
+  loads mods into the Android game.
+- **The Stardew Valley Dual Screen Mod**, which runs inside the game and feeds
+  the app.
+- **The Stardual Valley app.**
 
 Tested on an AYN Thor (Android 13) with:
 
 | Piece | Version |
 | --- | --- |
-| Stardew Valley (Play Store) | 1.6.15.3 |
+| Stardew Valley (Google Play) | 1.6.15.3 |
 | [SMAPI Launcher](https://github.com/NRTnarathip/SMAPILoader/releases) | 1.1.7 |
 | [SMAPI for Android](https://www.nexusmods.com/stardewvalley/mods/44436) | 4.3.2.5 |
-| Stardew Valley Dual Screen Mod (upstream release) | 2.0.0 |
+| [Stardew Valley Dual Screen Mod](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods/releases/tag/v2.0) | 2.0.0 |
+| Stardual Valley | latest [release](../../releases/latest) |
 
-The upstream README says the mod needs SMAPI 4.5. Its `manifest.json` actually
-asks for 4.0.0, and Android SMAPI 4.3.2.5 loads it. SMAPI rewrites a few calls
-for the Android game automatically, and no errors are logged.
+## Setup
 
-1. **Install SMAPI for Android.** Install the SMAPI Launcher APK, then use
-   **Install SMAPI From Zip** with the SMAPI-Android zip from Nexus. The launcher
-   only accepts a zip whose file name contains `SMAPI-Android`.
-2. **Install the mod.** Download `StardewDualScreenMod.zip` from the
-   [upstream v2.0 release](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods/releases/tag/v2.0),
-   extract it, and copy the `StardewDualScreenMod` folder into:
-   ```
-   Android/data/abc.smapi.gameloader/files/Mods/
-   ```
-   (Android SMAPI uses this folder, not `StardewValley/Mods`.)
-3. **Install the app.** Download `Stardual-Valley.apk` from the
-   [Releases page](../../releases/latest) and install it. If the upstream
-   DualScreen Mods app is installed, uninstall it first: both use the same
-   package name but are signed with different keys.
-4. **Play.** Start the game from **SMAPI Launcher**, then open **Stardual
-   Valley** on the lower screen. It connects to `ws://127.0.0.1:7786`; the
-   title art stays up until a save is loaded, then the Stardew pages appear.
+### Step 1: Set up SMAPI Launcher (required)
+
+SMAPI Launcher runs the Android version of Stardew Valley with mods. Do this
+first; nothing else works without it.
+
+1. **Install Stardew Valley** from Google Play and open it once to make sure
+   it runs.
+2. **Remove other Stardew mod loaders.** If you've used Cinderbox or another
+   loader with the Android game, uninstall it and delete any leftover
+   `StardewValley/smapi-internal` folder in your device storage. Leftover
+   loader files can make the game stick on a white screen.
+3. **Install SMAPI Launcher.** Download `SMAPI-Launcher-v1.1.7.apk` from the
+   [SMAPI Launcher releases](https://github.com/NRTnarathip/SMAPILoader/releases)
+   and install it. Android may ask you to allow installs from your browser or
+   file manager.
+4. **Download SMAPI for Android 4.3.2.5** from
+   [Nexus Mods](https://www.nexusmods.com/stardewvalley/mods/44436?tab=files)
+   (you need a free Nexus account; choose **Manual download**). Use this Nexus
+   version: the older 4.3.2.1 build on GitHub shows a white screen with
+   Stardew 1.6.15.3.
+5. **Install SMAPI.** Open SMAPI Launcher, tap **Install SMAPI From Zip**, and
+   pick the zip you downloaded. The launcher only accepts a zip whose file
+   name contains `SMAPI-Android` (the Nexus download already does; rename it
+   if you've changed the name). Wait for **"Successfully Install SMAPI"**.
+6. **Check it works.** Tap **Start Game**. The title screen should show
+   `SMAPI v4.3.2.5` in the bottom-left corner.
+
+> [!NOTE]
+> SMAPI Launcher keeps its own mods and saves, separate from the regular game:
+>
+> - Mods go in `Android/data/abc.smapi.gameloader/files/Mods/`
+> - Saves are in `Android/data/abc.smapi.gameloader/files/Saves/`
+>
+> Your existing farm won't appear in SMAPI until you copy its save folder from
+> `Android/data/com.chucklefish.stardewvalley/files/Saves/` into SMAPI's
+> `Saves` folder. Always start the game from **SMAPI Launcher**, not the
+> regular Stardew Valley icon, or mods won't load.
+
+### Step 2: Install the Dual Screen mod
+
+1. Download `StardewDualScreenMod.zip` from the
+   [upstream v2.0 release](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods/releases/tag/v2.0).
+2. Extract it and copy the `StardewDualScreenMod` folder into
+   `Android/data/abc.smapi.gameloader/files/Mods/`.
+
+The upstream README says this mod needs SMAPI 4.5; its `manifest.json` actually
+asks for 4.0.0, and Android SMAPI 4.3.2.5 loads it without errors.
+
+### Step 3: Install Stardual Valley
+
+Download `Stardual-Valley.apk` from the [Releases page](../../releases/latest)
+and install it. If Joe's original DualScreen Mods app is installed, uninstall it
+first: both use the same package name but are signed with different keys.
+
+### Step 4: Play
+
+1. Open **Stardual Valley** on the lower screen. It shows the title art and
+   says to launch Stardew Valley through SMAPI.
+2. Start the game from **SMAPI Launcher** on the top screen. When the mod
+   connects, the lower screen says to load a save.
+3. Load your farm. The lower screen switches to your day, map, farm, journal,
+   bundles, calendar and backpack.
 
 To open the app on the lower screen over adb (display 4 on the Thor):
 
@@ -91,13 +156,19 @@ To open the app on the lower screen over adb (display 4 on the Thor):
 adb shell am start --display 4 -n com.wemu.dualscreenmods/com.stardual.StardualActivity
 ```
 
-Notes:
+### Troubleshooting
 
-- The mod hides the game's HUD on the upper screen, because that information
-  moves to the lower screen. The app's Settings page has the mod's options.
-- The SMAPI log (`Android/data/abc.smapi.gameloader/files/ErrorLogs/SMAPI-latest.txt`)
-  shows `Listening on ws://127.0.0.1:7786` when the mod starts and
+- **The lower screen never says "Connected".** Make sure you started the game
+  from SMAPI Launcher (not the regular Stardew icon) and that the
+  `StardewDualScreenMod` folder is in SMAPI's `Mods` folder. Check the SMAPI
+  log at `Android/data/abc.smapi.gameloader/files/ErrorLogs/SMAPI-latest.txt`:
+  it should show `Listening on ws://127.0.0.1:7786` when the mod starts and
   `wemu connected` when the app connects.
+- **The game sticks on a white screen.** Use SMAPI for Android 4.3.2.5 from
+  Nexus, and remove leftover files from other mod loaders (see Step 1).
+- **The game's HUD is missing on the top screen.** That's intended: the mod
+  moves that information to the lower screen. The app's Settings page has the
+  mod's options.
 
 ## Building the app
 
@@ -138,7 +209,10 @@ plain icons: 48, 72, 96, 144 and 192 px).
 
 ## Upstream README
 
-The rest of this file is the original project's README.
+The rest of this file is the original project's README, kept for reference. It
+describes the **PC version** of Stardew running through WEMU, so its downloads
+and installation steps are not for Stardual Valley. For Android, follow
+[Setup](#setup) above.
 
 Native lower-screen companions for games running through WEMU on the AYN Thor.
 The Android companion keeps useful information and touch controls on the lower
