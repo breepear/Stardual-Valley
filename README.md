@@ -1,6 +1,6 @@
 # Stardual Valley
 
-<img src="assets/stardual-valley-logo.png" width="320" alt="Stardual Valley logo" />
+<img src="assets/stardual-valley-logo.png" width="200" alt="Stardual Valley logo: a big and a small pixel-art star in a night sky" />
 
 A lower-screen companion for **Stardew Valley on Android**, running on the AYN
 Thor. The top screen plays the game; the bottom screen shows your day, map,
@@ -34,8 +34,9 @@ for the full setup.
 - **App name:** "DualScreen Mods" is now "Stardual Valley"
   (`src/main/res/values/strings.xml`).
 - **App icon:** the upstream app had none. The Stardual Valley logo
-  (`assets/stardual-valley-logo.png`) is the launcher icon, in
-  `src/main/res/mipmap-*` and wired up in `src/main/AndroidManifest.xml`.
+  (`assets/stardual-valley-logo.png`), a big star and a small star for the
+  Thor's two screens, is the launcher icon, in `src/main/res/mipmap-*` and
+  wired up in `src/main/AndroidManifest.xml`.
 - **`tools/repack-apk.sh`:** builds the renamed app from the upstream release
   APK. See [Building the app](#building-the-app) for why.
 - **Android setup docs:** below.
@@ -110,14 +111,14 @@ installing it the first time. Keep your keystore safe and out of git: every
 later build must use the same key to update in place.
 
 The launcher icon is an adaptive icon
-(`src/main/res/mipmap-anydpi-v26/ic_launcher.xml`): a solid background layer
-(`ic_launcher_background.png`) and the wordmark on a transparent foreground
-(`ic_launcher_foreground.png`), sized so it fills the circle Android masks it
-to. The `ic_launcher.png` files are the same design for older Android versions.
-To change it, regenerate those files in every `mipmap-<density>` folder from a
-new `assets/stardual-valley-logo.png`. Foreground and background layers are
-108dp square (108, 162, 216, 324 and 432 px), with the visible circle being the
-middle 72dp.
+(`src/main/res/mipmap-anydpi-v26/ic_launcher.xml`). The logo is the background
+layer (`ic_launcher_background.png`), scaled so the whole image fills the middle
+72dp that a round launcher shows, with its edges mirrored out to the full 108dp
+layer. The foreground layer (`ic_launcher_foreground.png`) is empty. The
+`ic_launcher.png` files are the plain logo for older Android versions. To change
+the icon, regenerate those files in every `mipmap-<density>` folder from a new
+`assets/stardual-valley-logo.png` (layers: 108, 162, 216, 324 and 432 px;
+plain icons: 48, 72, 96, 144 and 192 px).
 
 ---
 
