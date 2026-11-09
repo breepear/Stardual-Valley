@@ -1,25 +1,41 @@
 # Stardual Valley
 
-<img src="tools/icon/preview.png" width="96" alt="Stardual Valley icon" />
+<img src="assets/stardual-valley-logo.png" width="320" alt="Stardual Valley logo" />
 
-A fork of [JoeCorrell/AYN-Thor-Dualscreen-Mods](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods)
-set up for the **Android version of Stardew Valley** on the AYN Thor, instead of
-the PC version running through WEMU. The companion app is renamed
-**Stardual Valley** and has a pixel-art icon.
+A lower-screen companion for **Stardew Valley on Android**, running on the AYN
+Thor. The top screen plays the game; the bottom screen shows your day, map,
+farm, journal, bundles, calendar and backpack, live.
 
-All credit for the app and the Stardew mod goes to the original authors
-(JoeCorrell and Profmags). The upstream project has no license, so this fork is
-for personal use on your own Thor. Don't publish modified builds without the
-authors' permission.
+**Modded for Android by [breepear](https://github.com/breepear).**
+
+## Credits
+
+Stardual Valley is built on
+[AYN Thor DualScreen Mods](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods)
+by **[JoeCorrell](https://github.com/JoeCorrell)**, with the Stardew Valley mod
+by **Profmags**. They made the companion app and the mod; all of that work is
+theirs. This fork adapts it for the Android version of Stardew Valley (instead
+of the PC version running through WEMU) and gives the app its own name and logo.
+
+The upstream project has no license, so its authors keep all rights to their
+code. If you are JoeCorrell or Profmags and want anything changed or taken down,
+please open an issue.
+
+## Download
+
+Get the latest **Stardual Valley APK** from the
+[Releases page](../../releases/latest). You also need the Stardew mod from the
+[upstream v2.0 release](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods/releases/tag/v2.0)
+(`StardewDualScreenMod.zip`). See [Running on Android](#running-on-android-ayn-thor)
+for the full setup.
 
 ## What changed in this fork
 
 - **App name:** "DualScreen Mods" is now "Stardual Valley"
   (`src/main/res/values/strings.xml`).
-- **App icon:** the upstream app had none. A 24×24 pixel-art icon (two stacked
-  screens, a star on the top screen and a sprout on the bottom) is in
-  `src/main/res/mipmap-*` and wired up in `src/main/AndroidManifest.xml`. It is
-  drawn by `tools/icon/icon.py`.
+- **App icon:** the upstream app had none. The Stardual Valley logo
+  (`assets/stardual-valley-logo.png`) is the launcher icon, in
+  `src/main/res/mipmap-*` and wired up in `src/main/AndroidManifest.xml`.
 - **`tools/repack-apk.sh`:** builds the renamed app from the upstream release
   APK. See [Building the app](#building-the-app) for why.
 - **Android setup docs:** below.
@@ -52,8 +68,10 @@ for the Android game automatically, and no errors are logged.
    Android/data/abc.smapi.gameloader/files/Mods/
    ```
    (Android SMAPI uses this folder, not `StardewValley/Mods`.)
-3. **Install the app.** Install the Stardual Valley APK (see
-   [Building the app](#building-the-app)) or the upstream `DualScreen.Mods.apk`.
+3. **Install the app.** Download `Stardual-Valley.apk` from the
+   [Releases page](../../releases/latest) and install it. If the upstream
+   DualScreen Mods app is installed, uninstall it first: both use the same
+   package name but are signed with different keys.
 4. **Play.** Start the game from **SMAPI Launcher**, then open **Stardual
    Valley** on the lower screen. It connects to `ws://127.0.0.1:7786` and fills
    in once a save is loaded.
@@ -91,12 +109,16 @@ different key than the upstream app, uninstall the upstream app before
 installing it the first time. Keep your keystore safe and out of git: every
 later build must use the same key to update in place.
 
-To change the icon, edit the pixel grid in `tools/icon/icon.py`, then run:
+To change the icon, replace `assets/stardual-valley-logo.png` and regenerate
+the launcher sizes (needs Pillow):
 
 ```bash
-python3 tools/icon/icon.py /tmp/icon
-for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do cp /tmp/icon/mipmap-$d/ic_launcher.png src/main/res/mipmap-$d/; done
-cp /tmp/icon/preview.png tools/icon/preview.png
+python3 - <<'PY'
+from PIL import Image
+im = Image.open('assets/stardual-valley-logo.png').convert('RGB')
+for d, s in {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}.items():
+    im.resize((s, s), Image.LANCZOS).save(f'src/main/res/mipmap-{d}/ic_launcher.png')
+PY
 ```
 
 ---
