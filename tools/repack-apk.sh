@@ -50,9 +50,12 @@ echo "Applying name and icon"
 APP_NAME="$(sed -n 's|.*<string name="app_name">\(.*\)</string>.*|\1|p' "$REPO_ROOT/src/main/res/values/strings.xml")"
 sed -i.bak "s|<string name=\"app_name\">[^<]*</string>|<string name=\"app_name\">$APP_NAME</string>|" \
   "$WORK/app/res/values/strings.xml"
-for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-  mkdir -p "$WORK/app/res/mipmap-$d"
-  cp "$REPO_ROOT/src/main/res/mipmap-$d/ic_launcher.png" "$WORK/app/res/mipmap-$d/"
+# Launcher icon: legacy PNGs plus the adaptive icon (background + foreground layers)
+# that Android 8+ launchers mask to a circle or other shape.
+for dir in "$REPO_ROOT"/src/main/res/mipmap-*; do
+  name="$(basename "$dir")"
+  mkdir -p "$WORK/app/res/$name"
+  cp "$dir"/* "$WORK/app/res/$name/"
 done
 if ! grep -q 'android:icon=' "$WORK/app/AndroidManifest.xml"; then
   sed -i.bak 's|android:label="@string/app_name"|android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:roundIcon="@mipmap/ic_launcher"|' \
