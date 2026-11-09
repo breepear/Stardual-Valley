@@ -109,17 +109,15 @@ different key than the upstream app, uninstall the upstream app before
 installing it the first time. Keep your keystore safe and out of git: every
 later build must use the same key to update in place.
 
-To change the icon, replace `assets/stardual-valley-logo.png` and regenerate
-the launcher sizes (needs Pillow):
-
-```bash
-python3 - <<'PY'
-from PIL import Image
-im = Image.open('assets/stardual-valley-logo.png').convert('RGB')
-for d, s in {'mdpi': 48, 'hdpi': 72, 'xhdpi': 96, 'xxhdpi': 144, 'xxxhdpi': 192}.items():
-    im.resize((s, s), Image.LANCZOS).save(f'src/main/res/mipmap-{d}/ic_launcher.png')
-PY
-```
+The launcher icon is an adaptive icon
+(`src/main/res/mipmap-anydpi-v26/ic_launcher.xml`): a solid background layer
+(`ic_launcher_background.png`) and the wordmark on a transparent foreground
+(`ic_launcher_foreground.png`), sized so it fills the circle Android masks it
+to. The `ic_launcher.png` files are the same design for older Android versions.
+To change it, regenerate those files in every `mipmap-<density>` folder from a
+new `assets/stardual-valley-logo.png`. Foreground and background layers are
+108dp square (108, 162, 216, 324 and 432 px), with the visible circle being the
+middle 72dp.
 
 ---
 
