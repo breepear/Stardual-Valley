@@ -3,3 +3,6 @@ build/
 mods/**/bin/
 mods/**/obj/
 *.apk
+*.keystore
+*.jks
+.repack/

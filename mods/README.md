@@ -5,7 +5,7 @@ happening and sends it to the app.
 
 | Folder | Game | Framework |
 | --- | --- | --- |
-| `StardewSecondScreen` | Stardew Valley | SMAPI 4.5 |
+| `StardewSecondScreen` | Stardew Valley | SMAPI 4.5 (PC); SMAPI for Android 4.3.2.5 also works |
 
 They sit inside the app rather than beside it because they are two halves of one
 feature. A mod and the page that draws it agree a wire format between them, and

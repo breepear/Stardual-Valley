@@ -1,4 +1,109 @@
-# AYN Thor DualScreen Mods
+# Stardual Valley
+
+<img src="tools/icon/preview.png" width="96" alt="Stardual Valley icon" />
+
+A fork of [JoeCorrell/AYN-Thor-Dualscreen-Mods](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods)
+set up for the **Android version of Stardew Valley** on the AYN Thor, instead of
+the PC version running through WEMU. The companion app is renamed
+**Stardual Valley** and has a pixel-art icon.
+
+All credit for the app and the Stardew mod goes to the original authors
+(JoeCorrell and Profmags). The upstream project has no license, so this fork is
+for personal use on your own Thor. Don't publish modified builds without the
+authors' permission.
+
+## What changed in this fork
+
+- **App name:** "DualScreen Mods" is now "Stardual Valley"
+  (`src/main/res/values/strings.xml`).
+- **App icon:** the upstream app had none. A 24×24 pixel-art icon (two stacked
+  screens, a star on the top screen and a sprout on the bottom) is in
+  `src/main/res/mipmap-*` and wired up in `src/main/AndroidManifest.xml`. It is
+  drawn by `tools/icon/icon.py`.
+- **`tools/repack-apk.sh`:** builds the renamed app from the upstream release
+  APK. See [Building the app](#building-the-app) for why.
+- **Android setup docs:** below.
+
+No code changes were needed to run on Android. The upstream v2.0 release mod
+and app work as they are.
+
+## Running on Android (AYN Thor)
+
+Tested on an AYN Thor (Android 13) with:
+
+| Piece | Version |
+| --- | --- |
+| Stardew Valley (Play Store) | 1.6.15.3 |
+| [SMAPI Launcher](https://github.com/NRTnarathip/SMAPILoader/releases) | 1.1.7 |
+| [SMAPI for Android](https://www.nexusmods.com/stardewvalley/mods/44436) | 4.3.2.5 |
+| Stardew Valley Dual Screen Mod (upstream release) | 2.0.0 |
+
+The upstream README says the mod needs SMAPI 4.5. Its `manifest.json` actually
+asks for 4.0.0, and Android SMAPI 4.3.2.5 loads it. SMAPI rewrites a few calls
+for the Android game automatically, and no errors are logged.
+
+1. **Install SMAPI for Android.** Install the SMAPI Launcher APK, then use
+   **Install SMAPI From Zip** with the SMAPI-Android zip from Nexus. The launcher
+   only accepts a zip whose file name contains `SMAPI-Android`.
+2. **Install the mod.** Download `StardewDualScreenMod.zip` from the
+   [upstream v2.0 release](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods/releases/tag/v2.0),
+   extract it, and copy the `StardewDualScreenMod` folder into:
+   ```
+   Android/data/abc.smapi.gameloader/files/Mods/
+   ```
+   (Android SMAPI uses this folder, not `StardewValley/Mods`.)
+3. **Install the app.** Install the Stardual Valley APK (see
+   [Building the app](#building-the-app)) or the upstream `DualScreen.Mods.apk`.
+4. **Play.** Start the game from **SMAPI Launcher**, then open **Stardual
+   Valley** on the lower screen. It connects to `ws://127.0.0.1:7786` and fills
+   in once a save is loaded.
+
+To open the app on the lower screen over adb (display 4 on the Thor):
+
+```bash
+adb shell am start --display 4 -n com.wemu.dualscreenmods/com.wemu.dualscreen.DualScreenActivity
+```
+
+Notes:
+
+- The mod hides the game's HUD on the upper screen, because that information
+  moves to the lower screen. The app's Settings page has the mod's options.
+- The SMAPI log (`Android/data/abc.smapi.gameloader/files/ErrorLogs/SMAPI-latest.txt`)
+  shows `Listening on ws://127.0.0.1:7786` when the mod starts and
+  `wemu connected` when the app connects.
+
+## Building the app
+
+The app can't be compiled from this repo alone: `DualScreenActivity.kt` imports
+`ThorTheme`, `ModsPage` and `SecondScreen` from shared libraries that aren't
+published here. Instead, `tools/repack-apk.sh` downloads the upstream release
+APK, applies this repo's name and icon, and signs it with your own key:
+
+```bash
+APKTOOL_JAR=/path/to/apktool.jar \
+BUILD_TOOLS=~/Library/Android/sdk/build-tools/37.0.0 \
+KEYSTORE=~/stardual.keystore KEYSTORE_PASS=yourpass \
+tools/repack-apk.sh
+```
+
+The result is `.repack/stardual-valley.apk`. Because it is signed with a
+different key than the upstream app, uninstall the upstream app before
+installing it the first time. Keep your keystore safe and out of git: every
+later build must use the same key to update in place.
+
+To change the icon, edit the pixel grid in `tools/icon/icon.py`, then run:
+
+```bash
+python3 tools/icon/icon.py /tmp/icon
+for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do cp /tmp/icon/mipmap-$d/ic_launcher.png src/main/res/mipmap-$d/; done
+cp /tmp/icon/preview.png tools/icon/preview.png
+```
+
+---
+
+## Upstream README
+
+The rest of this file is the original project's README.
 
 Native lower-screen companions for games running through WEMU on the AYN Thor.
 The Android companion keeps useful information and touch controls on the lower
