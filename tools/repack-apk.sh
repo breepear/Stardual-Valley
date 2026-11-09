@@ -5,17 +5,23 @@
 # DualScreenActivity.kt imports ThorTheme and the Stardew pages (ModsPage,
 # SecondScreen) from shared libraries that are not published here. So instead of
 # compiling, this script takes the upstream release APK, swaps in this repo's
-# app name and icon, and signs the result with your own key.
+# app name, icon and start screen, and signs the result with your own key.
+#
+# The start screen (overlay/src/com/stardual/StardualActivity.java) is compiled
+# here and added to the APK as an extra dex file. It becomes the launcher
+# activity and shows src/main/res/drawable-nodpi/stardual_home.png full screen
+# until a Stardew save is loaded.
 #
 # Requirements:
-#   - Java 17+
+#   - Java 17+ (javac)
 #   - apktool jar   (https://github.com/iBotPeaches/Apktool/releases)
-#   - Android SDK build-tools (zipalign, apksigner)
+#   - Android SDK build-tools (zipalign, apksigner, d8) and a platform android.jar
 #   - gh (GitHub CLI), signed in, to download the upstream release
 #
 # Usage:
 #   APKTOOL_JAR=/path/to/apktool.jar \
 #   BUILD_TOOLS=~/Library/Android/sdk/build-tools/37.0.0 \
+#   ANDROID_JAR=~/Library/Android/sdk/platforms/android-36/android.jar \
 #   KEYSTORE=~/stardual.keystore KEYSTORE_PASS=yourpass \
 #   tools/repack-apk.sh
 #
@@ -32,6 +38,7 @@ UPSTREAM_ASSET="${UPSTREAM_ASSET:-DualScreen.Mods.apk}"
 
 : "${APKTOOL_JAR:?Set APKTOOL_JAR to the apktool jar}"
 : "${BUILD_TOOLS:?Set BUILD_TOOLS to an Android SDK build-tools folder}"
+: "${ANDROID_JAR:?Set ANDROID_JAR to an Android SDK platform android.jar}"
 : "${KEYSTORE:?Set KEYSTORE to your signing keystore path}"
 : "${KEYSTORE_PASS:?Set KEYSTORE_PASS to the keystore password}"
 KEY_ALIAS="${KEY_ALIAS:-stardual}"
@@ -61,6 +68,26 @@ if ! grep -q 'android:icon=' "$WORK/app/AndroidManifest.xml"; then
   sed -i.bak 's|android:label="@string/app_name"|android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:roundIcon="@mipmap/ic_launcher"|' \
     "$WORK/app/AndroidManifest.xml"
 fi
+
+echo "Adding the Stardual start screen"
+mkdir -p "$WORK/app/res/drawable-nodpi"
+cp "$REPO_ROOT/src/main/res/drawable-nodpi/stardual_home.png" "$WORK/app/res/drawable-nodpi/"
+mkdir -p "$WORK/overlay/stubs" "$WORK/overlay/classes" "$WORK/overlay/dex"
+# Paths may contain spaces, so collect file lists into arrays.
+stubs=(); while IFS= read -r -d '' f; do stubs+=("$f"); done < <(find "$REPO_ROOT/overlay/stubs" -name '*.java' -print0)
+srcs=(); while IFS= read -r -d '' f; do srcs+=("$f"); done < <(find "$REPO_ROOT/overlay/src" -name '*.java' -print0)
+javac -nowarn -source 11 -target 11 -cp "$ANDROID_JAR" -d "$WORK/overlay/stubs" "${stubs[@]}"
+javac -nowarn -source 11 -target 11 -cp "$ANDROID_JAR:$WORK/overlay/stubs" -d "$WORK/overlay/classes" "${srcs[@]}"
+classes=(); while IFS= read -r -d '' f; do classes+=("$f"); done < <(find "$WORK/overlay/classes" -name '*.class' -print0)
+"$BUILD_TOOLS/d8" --release --min-api 26 --lib "$ANDROID_JAR" --classpath "$WORK/overlay/stubs" \
+  --output "$WORK/overlay/dex" "${classes[@]}"
+# Add it after the upstream dex files (classes.dex, classes2.dex ... classesN.dex).
+n=1; while [ -f "$WORK/app/classes$((n + 1)).dex" ]; do n=$((n + 1)); done
+cp "$WORK/overlay/dex/classes.dex" "$WORK/app/classes$((n + 1)).dex"
+# Launch StardualActivity instead of the upstream DualScreenActivity.
+sed -i.bak 's|android:name="com.wemu.dualscreen.DualScreenActivity"|android:name="com.stardual.StardualActivity"|' \
+  "$WORK/app/AndroidManifest.xml"
+grep -q 'com.stardual.StardualActivity' "$WORK/app/AndroidManifest.xml"
 find "$WORK/app" -name '*.bak' -delete
 
 echo "Rebuilding"

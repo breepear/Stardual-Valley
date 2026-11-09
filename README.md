@@ -39,6 +39,14 @@ for the full setup.
   wired up in `src/main/AndroidManifest.xml`.
 - **`tools/repack-apk.sh`:** builds the renamed app from the upstream release
   APK. See [Building the app](#building-the-app) for why.
+- **Start screen:** while you wait for a game, the lower screen shows the
+  Stardual Valley title art (`src/main/res/drawable-nodpi/stardual_home.png`)
+  full screen, with a hint at the bottom: "Launch Stardew Valley through SMAPI
+  to connect Stardual." Once the game connects it reads "Connected! Load a save
+  in Stardew Valley to begin.", and when a save loads the art steps aside for
+  the Stardew pages. This replaces the upstream multi-game list, so the app only
+  ever shows Stardew. The screen is `overlay/src/com/stardual/StardualActivity.java`,
+  which becomes the app's launcher activity (see [Building the app](#building-the-app)).
 - **Android setup docs:** below.
 
 No code changes were needed to run on Android. The upstream v2.0 release mod
@@ -74,13 +82,13 @@ for the Android game automatically, and no errors are logged.
    DualScreen Mods app is installed, uninstall it first: both use the same
    package name but are signed with different keys.
 4. **Play.** Start the game from **SMAPI Launcher**, then open **Stardual
-   Valley** on the lower screen. It connects to `ws://127.0.0.1:7786` and fills
-   in once a save is loaded.
+   Valley** on the lower screen. It connects to `ws://127.0.0.1:7786`; the
+   title art stays up until a save is loaded, then the Stardew pages appear.
 
 To open the app on the lower screen over adb (display 4 on the Thor):
 
 ```bash
-adb shell am start --display 4 -n com.wemu.dualscreenmods/com.wemu.dualscreen.DualScreenActivity
+adb shell am start --display 4 -n com.wemu.dualscreenmods/com.stardual.StardualActivity
 ```
 
 Notes:
@@ -96,11 +104,17 @@ Notes:
 The app can't be compiled from this repo alone: `DualScreenActivity.kt` imports
 `ThorTheme`, `ModsPage` and `SecondScreen` from shared libraries that aren't
 published here. Instead, `tools/repack-apk.sh` downloads the upstream release
-APK, applies this repo's name and icon, and signs it with your own key:
+APK, applies this repo's name, icon and start screen, and signs it with your own
+key. The start screen is a small Java activity (`overlay/src`) compiled against
+stand-in declarations of the upstream classes it calls (`overlay/stubs`, not
+packaged); the script adds it to the APK as an extra dex file and makes it the
+launcher activity. It reuses the upstream screen's content, so everything else
+behaves exactly as before:
 
 ```bash
 APKTOOL_JAR=/path/to/apktool.jar \
 BUILD_TOOLS=~/Library/Android/sdk/build-tools/37.0.0 \
+ANDROID_JAR=~/Library/Android/sdk/platforms/android-36/android.jar \
 KEYSTORE=~/stardual.keystore KEYSTORE_PASS=yourpass \
 tools/repack-apk.sh
 ```
