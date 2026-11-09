@@ -1,6 +1,6 @@
 # Stardual Valley
 
-<img src="assets/stardual-valley-logo.png" width="200" alt="Stardual Valley logo: a big and a small pixel-art star in a night sky" />
+<img src="assets/stardual-valley-banner.png" width="100%" alt="Stardual Valley title art: the Stardual Valley wordmark over a starry sky and green hills" />
 
 A lower-screen companion for **Stardew Valley on Android**, running on the AYN
 Thor. The top screen plays the game; the bottom screen shows your day, map,
