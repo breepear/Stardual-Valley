@@ -56,6 +56,7 @@ namespace StardewSecondScreen
         private bool _portraitWanted;
 
         private bool _artSent;
+        private int _lastJoins;
 
         private string _groundSeason = "";
 
@@ -176,16 +177,12 @@ namespace StardewSecondScreen
 
                 if (hide) {  }
 
-                if (connected)
-                {
-
-                    _artSent = false;
-
-                    Announce();
-                    _sprites.Reset();
-                    SendEverything();
-                }
+                if (connected) Resync();
             }
+
+            // The app connected again (after a crash, or being closed and reopened) while the
+            // HUD setting stayed the same. A fresh app has no item pictures, so start over.
+            if (connected && _bridge!.Joins != _lastJoins) Resync();
 
             if (Game1.player.CurrentToolIndex != _lastSelected)
             {
@@ -269,6 +266,8 @@ namespace StardewSecondScreen
                     break;
 
                 case "refresh":
+                    _artSent = false;
+                    _sprites.Reset();
                     SendEverything();
                     break;
             }
@@ -316,6 +315,16 @@ namespace StardewSecondScreen
             }
             _bridge?.Broadcast("game_info", Json.Message(
                 "game_info", Json.Str("gameId", "stardew"), Json.Str("saveName", "")));
+        }
+
+        /// <summary>Sends the app everything from scratch, pictures included.</summary>
+        private void Resync()
+        {
+            _lastJoins = _bridge?.Joins ?? 0;
+            _artSent = false;
+            Announce();
+            _sprites.Reset();
+            SendEverything();
         }
 
         private void Announce()
@@ -445,6 +454,16 @@ namespace StardewSecondScreen
 
                             var parts = fields[2].Split(' ');
                             var missing = new List<string>();
+                            // The app keys each item in a bundle row by id:name:count:quality and
+                            // crashes on a repeat. Some bundles ask for the same thing twice (the
+                            // Construction Bundle wants 99 Wood in two slots), so make repeats
+                            // unique with invisible zero-width spaces on the name.
+                            var seen = new HashSet<string>();
+                            string Unique(string id, string name, int count, int quality)
+                            {
+                                while (!seen.Add($"{id}:{name}:{count}:{quality}")) name += "​";
+                                return name;
+                            }
                             var have = 0;
                             var slots = 0;
 
@@ -461,7 +480,7 @@ namespace StardewSecondScreen
                                 {
                                     missing.Add(Json.Object(
                                         Json.Str("id", ""),
-                                        Json.Str("name", count.ToString("N0") + "g"),
+                                        Json.Str("name", Unique("", count.ToString("N0") + "g", 1, 0)),
                                         Json.Num("count", 1),
                                         Json.Num("quality", 0),
                                         Json.Flag("carried", Game1.player.Money >= count)));
@@ -474,7 +493,7 @@ namespace StardewSecondScreen
 
                                 missing.Add(Json.Object(
                                     Json.Str("id", qid),
-                                    Json.Str("name", data?.DisplayName ?? parts[i]),
+                                    Json.Str("name", Unique(qid, data?.DisplayName ?? parts[i], count, quality)),
                                     Json.Num("count", count),
                                     Json.Num("quality", quality),
                                     Json.Flag("carried", carried.Contains(qid))));

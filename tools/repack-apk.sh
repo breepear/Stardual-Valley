@@ -51,7 +51,11 @@ echo "Downloading $UPSTREAM_ASSET from $UPSTREAM_REPO $UPSTREAM_TAG"
 gh release download "$UPSTREAM_TAG" -R "$UPSTREAM_REPO" -p "$UPSTREAM_ASSET" -D "$WORK"
 
 echo "Unpacking"
-java -jar "$APKTOOL_JAR" d -s -o "$WORK/app" "$WORK/$UPSTREAM_ASSET"
+java -jar "$APKTOOL_JAR" d -o "$WORK/app" "$WORK/$UPSTREAM_ASSET"
+
+echo "Applying Stardual's changes to the app's code"
+# Fixes the bundles page crash and tightens the Gift Guide layout. See the file for details.
+python3 -I "$REPO_ROOT/tools/smali_patches.py" "$WORK/app"
 
 echo "Applying name and icon"
 APP_NAME="$(sed -n 's|.*<string name="app_name">\(.*\)</string>.*|\1|p' "$REPO_ROOT/src/main/res/values/strings.xml")"
@@ -81,8 +85,9 @@ javac -nowarn -source 11 -target 11 -cp "$ANDROID_JAR:$WORK/overlay/stubs" -d "$
 classes=(); while IFS= read -r -d '' f; do classes+=("$f"); done < <(find "$WORK/overlay/classes" -name '*.class' -print0)
 "$BUILD_TOOLS/d8" --release --min-api 26 --lib "$ANDROID_JAR" --classpath "$WORK/overlay/stubs" \
   --output "$WORK/overlay/dex" "${classes[@]}"
-# Add it after the upstream dex files (classes.dex, classes2.dex ... classesN.dex).
-n=1; while [ -f "$WORK/app/classes$((n + 1)).dex" ]; do n=$((n + 1)); done
+# Add it after the upstream dex files. apktool unpacks those as smali, smali_classes2 ...
+# smali_classesN, which it rebuilds into classes.dex ... classesN.dex.
+n=1; while [ -e "$WORK/app/classes$((n + 1)).dex" ] || [ -d "$WORK/app/smali_classes$((n + 1))" ]; do n=$((n + 1)); done
 cp "$WORK/overlay/dex/classes.dex" "$WORK/app/classes$((n + 1)).dex"
 # Launch StardualActivity instead of the upstream DualScreenActivity.
 sed -i.bak 's|android:name="com.wemu.dualscreen.DualScreenActivity"|android:name="com.stardual.StardualActivity"|' \

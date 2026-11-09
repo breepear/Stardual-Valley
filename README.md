@@ -33,10 +33,10 @@ please open an issue.
 
 ## Download
 
-Get the latest **Stardual Valley APK** from the
-[Releases page](../../releases/latest). You also need the Stardew mod from the
-[upstream v2.0 release](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods/releases/tag/v2.0)
-(`StardewDualScreenMod.zip`), and Stardew Valley running through SMAPI Launcher.
+Get both files from the latest [Releases page](../../releases/latest): the
+**Stardual Valley APK** (`Stardual-Valley.apk`) and the Stardew mod
+(`StardewDualScreenMod.zip`). You also need Stardew Valley running through
+SMAPI Launcher.
 Follow [Setup](#setup) below.
 
 ## What changed in this fork
@@ -57,10 +57,20 @@ Follow [Setup](#setup) below.
   the Stardew pages. This replaces the upstream multi-game list, so the app only
   ever shows Stardew. The screen is `overlay/src/com/stardual/StardualActivity.java`,
   which becomes the app's launcher activity (see [Building the app](#building-the-app)).
+- **Bundles page crash fixed:** the upstream app crashed when you scrolled
+  the Bundles page to a bundle that asks for the same item twice (the
+  Construction Bundle wants 99 Wood in two slots). See `tools/smali_patches.py`.
+- **Gift Guide fits more villagers:** no title block or list header, no
+  birthday line, and shorter rows with smaller portraits and gift icons, so you
+  see about five villagers at once instead of two. Also in
+  `tools/smali_patches.py`.
+- **Reconnect fix in the Stardew mod:** if the app closed or crashed while the
+  game kept running, the reopened app came back without any item pictures or
+  art, because the mod thought it had already sent them. The mod now sends
+  everything again whenever the app reconnects. The release's
+  `StardewDualScreenMod.zip` is the upstream 2.0 mod with this fix; the same
+  change is in this repo's mod source (`mods/StardewSecondScreen`).
 - **Android setup docs:** see [Setup](#setup).
-
-No code changes were needed to run on Android. The upstream v2.0 release mod
-and app work as they are.
 
 ## Requirements
 
@@ -128,7 +138,8 @@ first; nothing else works without it.
 ### Step 2: Install the Dual Screen mod
 
 1. Download `StardewDualScreenMod.zip` from the
-   [upstream v2.0 release](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods/releases/tag/v2.0).
+   [Releases page](../../releases/latest). It's the upstream v2.0 mod with a fix
+   for reconnecting after the app restarts.
 2. Extract it and copy the `StardewDualScreenMod` folder into
    `Android/data/abc.smapi.gameloader/files/Mods/`.
 
@@ -179,8 +190,11 @@ APK, applies this repo's name, icon and start screen, and signs it with your own
 key. The start screen is a small Java activity (`overlay/src`) compiled against
 stand-in declarations of the upstream classes it calls (`overlay/stubs`, not
 packaged); the script adds it to the APK as an extra dex file and makes it the
-launcher activity. It reuses the upstream screen's content, so everything else
-behaves exactly as before:
+launcher activity. It reuses the upstream screen's content. The script also runs
+`tools/smali_patches.py`, which makes the bundles and Gift Guide changes directly
+in the upstream app's unpacked code; each patch stops the build if the code it
+expects has moved, so a new upstream release can't be patched in the wrong
+place. Everything else behaves exactly as upstream:
 
 ```bash
 APKTOOL_JAR=/path/to/apktool.jar \

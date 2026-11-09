@@ -46,6 +46,12 @@ namespace StardewSecondScreen
             get { lock (_lock) { return _clients.Count > 0; } }
         }
 
+        private int _joins;
+
+        /// <summary>Goes up by one every time the app connects, including reconnects after a
+        /// crash, so the mod can tell a fresh app apart from one it has already filled in.</summary>
+        public int Joins => Volatile.Read(ref _joins);
+
         public void Start()
         {
             try
@@ -97,6 +103,7 @@ namespace StardewSecondScreen
                 await stream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
 
                 lock (_lock) { _clients.Add(client); }
+                Interlocked.Increment(ref _joins);
                 _log("wemu connected");
 
                 List<string> backlog;
