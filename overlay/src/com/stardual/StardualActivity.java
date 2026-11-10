@@ -125,7 +125,7 @@ public class StardualActivity extends ComponentActivity {
             boolean connected = state != null && state.getClass().getSimpleName().equals("Connected");
             hint.setText(connected
                     ? "Connected! Load a save in Stardew Valley to begin."
-                    : "Launch Stardew Valley through SMAPI to connect Stardual.");
+                    : "Launch Stardew Valley to connect Stardual.");
         }
     }
 
