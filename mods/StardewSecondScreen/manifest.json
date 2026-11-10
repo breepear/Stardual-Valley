@@ -1,9 +1,9 @@
 {
-  "Name": "Wemu Second Screen",
-  "Author": "Profmags",
-  "Version": "1.0.0",
-  "Description": "Sends your day, map, farm, journal, bundles and bag to a second screen, and lets you switch tools, eat, sort your bag and cancel quests from it.",
-  "UniqueID": "wemu.SecondScreen",
+  "Name": "Stardew Valley Dual Screen Mod",
+  "Author": "Profmags (adapted for Stardual Valley by breepear)",
+  "Version": "2.1.0",
+  "Description": "Feeds the Stardual Valley lower-screen app: your day, an overview of things to do, map, relationships, farm, journal, bundles, calendar and settings. Works with Stardew Valley on Android (SMAPI Launcher) and on PC (Cinderbox).",
+  "UniqueID": "Profmags.StardewValleyDualScreenMod",
   "EntryDll": "StardewDualScreen.dll",
   "MinimumApiVersion": "4.0.0",
   "UpdateKeys": []

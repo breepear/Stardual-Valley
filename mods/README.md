@@ -1,27 +1,26 @@
 # Mods
 
-The game side of DualScreen Mods. Each one runs inside its game, reads what is
-happening and sends it to the app.
+The game side of Stardual Valley. These run inside Stardew Valley through SMAPI.
+The same builds work on the Android game (SMAPI Launcher) and the PC game
+(Cinderbox); only Stick Cursor has a separate PC build.
 
-| Folder | Game | Framework |
+| Folder | What it does | Needed? |
 | --- | --- | --- |
-| `StardewSecondScreen` | Stardew Valley | SMAPI 4.5 (PC); SMAPI for Android 4.3.2.5 also works |
+| `StardewSecondScreen` | Reads the game and feeds the Stardual Valley app over a local socket | Yes |
+| `StickCursor` | Console-style pointer and toolbar controls | Optional |
 
-They sit inside the app rather than beside it because they are two halves of one
-feature. A mod and the page that draws it agree a wire format between them, and
-that agreement is not written down anywhere except in the two files that
-implement it, so they are shipped and changed together.
+The Dual Screen mod and the app are two halves of one feature: the mod sends
+messages and the app's pages draw them, and the format is only written down in
+the code on each side, so they are changed and released together.
 
-These are not built by Gradle. They are .NET projects:
+These are .NET projects, not built by Gradle:
 
-```
+```bash
 cd StardewSecondScreen
 dotnet build -c Release
 ```
 
-The output lands in `bin/Release/net6.0` and is copied into the game's `Mods`
-directory by hand, since the game usually runs somewhere other than the machine
-that built it.
-
-The pages they feed live in `:secondscreen`, shared with wemu so there is one
-copy of each game's screen.
+`Pathoschild.Stardew.ModBuildConfig` needs a PC copy of Stardew Valley with
+SMAPI to build against; pass `-p:GamePath=/path/to/Stardew Valley` if it can't
+find one. Copy the output from `bin/Release/net6.0` into the game's `Mods`
+folder on the Thor by hand.

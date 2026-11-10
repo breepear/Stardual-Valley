@@ -8,9 +8,9 @@
     <LangVersion>latest</LangVersion>
     <EnableHarmony>false</EnableHarmony>
     <!--
-      The mod is copied into the container by hand, not into this PC's install.
-      The game runs from Android storage; deploying here would only ever update
-      a copy nothing loads. See the deploy note in the README.
+      The game runs on the Thor (Android storage or Cinderbox), not on the machine
+      that builds this, so the mod is copied over by hand. Set GamePath to a PC
+      Stardew Valley install with SMAPI if the build can't find one on its own.
     -->
     <EnableModDeploy>false</EnableModDeploy>
     <EnableModZip>false</EnableModZip>

@@ -2,30 +2,28 @@
 
 <img src="assets/stardual-valley-banner.png" width="100%" alt="Stardual Valley title art: the Stardual Valley wordmark over a starry sky and green hills" />
 
-A lower-screen companion for **Stardew Valley on Android**, running on the AYN
-Thor. The top screen plays the game; the bottom screen shows your day, map,
-farm, journal, bundles, calendar and backpack, live.
+A lower-screen companion for **Stardew Valley on the AYN Thor**. The top screen
+plays the game; the bottom screen shows an overview of your day, the map, your
+relationships, gift ideas, fields, crafting, journal, machines, bundles and
+calendar, live.
 
-**Modded for Android by [breepear](https://github.com/breepear).**
+**Works with both versions of Stardew Valley on the Thor:**
 
-> [!IMPORTANT]
-> **Stardual Valley only works with the Android version of Stardew Valley,
-> running through SMAPI Launcher.** SMAPI Launcher is required: without it the
-> mod can't load and Stardual Valley has nothing to connect to.
->
-> **Playing the PC (Steam) version of Stardew through Cinderbox or WEMU? This
-> isn't for you. Use JoeCorrell's original
-> [AYN Thor DualScreen Mods](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods)
-> instead.** It's built for the PC version and supports it properly.
+- **Android** (the Google Play game), running through **SMAPI Launcher**
+- **PC** (the Steam game), running through **Cinderbox**
+
+**Adapted by [breepear](https://github.com/breepear)** from JoeCorrell's
+AYN Thor DualScreen Mods (see [Credits](#credits)).
 
 ## Credits
 
 Stardual Valley is built on
 [AYN Thor DualScreen Mods](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods)
 by **[JoeCorrell](https://github.com/JoeCorrell)**, with the Stardew Valley mod
-by **Profmags**. They made the companion app and the mod; all of that work is
-theirs. This fork adapts it for the Android version of Stardew Valley (instead
-of the PC version running through WEMU) and gives the app its own name and logo.
+by **Profmags**. They made the companion app and the mod; this project builds
+on their work. Stardual Valley adds its own pages, layout changes and fixes on
+top, gives the app its own name and logo, and makes it work with Stardew on
+Android and in Cinderbox.
 
 The upstream project has no license, so its authors keep all rights to their
 code. If you are JoeCorrell or Profmags and want anything changed or taken down,
@@ -33,81 +31,95 @@ please open an issue.
 
 ## Download
 
-Get both files from the latest [Releases page](../../releases/latest): the
-**Stardual Valley APK** (`Stardual-Valley.apk`) and the Stardew mod
-(`StardewDualScreenMod.zip`). You also need Stardew Valley running through
-SMAPI Launcher.
-Follow [Setup](#setup) below.
+Get these from the latest [Releases page](../../releases/latest):
 
-## What changed in this fork
+| File | What it is | Needed? |
+| --- | --- | --- |
+| `Stardual-Valley.apk` | The lower-screen app | Yes |
+| `StardewDualScreenMod.zip` | The Stardew mod that feeds the app. Same file for Android and PC. | Yes |
+| `StickCursor-Android.zip` | Right-stick pointer and toolbar controls for the Android game | Optional |
+| `StickCursor-PC.zip` | Right-stick pointer, A-button fix and placement preview for the PC game in Cinderbox | Optional |
 
-- **App name:** "DualScreen Mods" is now "Stardual Valley"
-  (`src/main/res/values/strings.xml`).
-- **App icon:** the upstream app had none. The Stardual Valley logo
-  (`assets/stardual-valley-logo.png`), a big star and a small star for the
-  Thor's two screens, is the launcher icon, in `src/main/res/mipmap-*` and
-  wired up in `src/main/AndroidManifest.xml`.
-- **`tools/repack-apk.sh`:** builds the renamed app from the upstream release
-  APK. See [Building the app](#building-the-app) for why.
-- **Start screen:** while you wait for a game, the lower screen shows the
-  Stardual Valley title art (`src/main/res/drawable-nodpi/stardual_home.png`)
-  full screen, with a hint at the bottom: "Launch Stardew Valley through SMAPI
-  to connect Stardual." Once the game connects it reads "Connected! Load a save
-  in Stardew Valley to begin.", and when a save loads the art steps aside for
-  the Stardew pages. This replaces the upstream multi-game list, so the app only
-  ever shows Stardew. The screen is `overlay/src/com/stardual/StardualActivity.java`,
-  which becomes the app's launcher activity (see [Building the app](#building-the-app)).
-- **Bundles page crash fixed:** the upstream app crashed when you scrolled
-  the Bundles page to a bundle that asks for the same item twice (the
-  Construction Bundle wants 99 Wood in two slots). See `tools/smali_patches.py`.
-- **Gift Guide fits more villagers:** no title block or list header, no
-  birthday line, and shorter rows with smaller portraits and gift icons, so you
-  see about five villagers at once instead of two. Also in
-  `tools/smali_patches.py`.
-- **Reconnect fix in the Stardew mod:** if the app closed or crashed while the
-  game kept running, the reopened app came back without any item pictures or
-  art, because the mod thought it had already sent them. The mod now sends
-  everything again whenever the app reconnects. The release's
-  `StardewDualScreenMod.zip` is the upstream 2.0 mod with this fix; the same
-  change is in this repo's mod source (`mods/StardewSecondScreen`).
-- **Android setup docs:** see [Setup](#setup).
+Then follow [Setup](#setup).
+
+## What Stardual Valley adds
+
+On top of the upstream app and mod:
+
+- **Overview page** (the first page). A dashboard of your day:
+  - **Today, tomorrow and luck** across the top, with tomorrow's weather.
+  - **To do:** birthdays (with a gift you own that they love or like),
+    crops to water and harvest, machines that are ready, animals to pet, milk or
+    shear, the pet bowl, timed quests and special orders, mail, a finished tool
+    upgrade, the Traveling Cart and festivals. Tap a row to tick it off; ticks
+    are kept for the day. Things the game knows you've done tick themselves.
+  - **When you're bored:** fish you haven't caught that are biting now, gift
+    ideas, villagers you haven't talked to, museum and bundle items you're
+    carrying, something to cook, new items to ship and your next mines goal.
+    Tap a villager to open their Lookup Anything panel on the top screen.
+- **Backpack page removed.** The Overview replaces it, and the game's own
+  toolbar covers the rest.
+- **Relationships page:** hearts in two rows, each villager's status ("Single",
+  "Married to Pierre", "Dating you") under their birthday, no header or footer,
+  cleaner gift and talk checkboxes. Tap a villager to open their Lookup
+  Anything panel on the top screen.
+- **Gift Guide fits more villagers:** about five at once instead of two.
+- **Map:** the villager row runs the full width with names under bigger
+  portraits; the farm summary and date row are gone.
+- **Crafting and Fields:** the bottom strips are gone so the lists fill the
+  screen.
+- **Tab order:** Overview, Map, Relationships, Gift Guide, Fields, Crafting,
+  Journal, Machines, Bundles, Calendar, Settings.
+- **Start screen:** the Stardual Valley title art while you wait for the game,
+  with a hint, then "Connected! Load a save in Stardew Valley to begin." It
+  replaces the upstream multi-game list, so the app only shows Stardew.
+- **Fixes:** the Bundles page no longer crashes on the Construction Bundle, and
+  reopening the app while the game is running loads all the pictures again.
+- **App name and icon:** "Stardual Valley" with its own two-star logo.
+- **Stick Cursor** (optional mod, in `mods/StickCursor`). On PC it also fixes A:
+  it always acts on the tile you're facing (or the pointer, when it shows) and
+  never opens the menu by catching the clock box.
+
+The app's code changes are in `tools/smali_patches.py` and `overlay/`; the mod
+changes are in `mods/StardewSecondScreen`. See [Building the app](#building-the-app).
 
 ## Requirements
 
-Stardual Valley needs all of these:
-
-- **An AYN Thor** (or another dual-screen Android device; only the Thor is tested).
-- **Stardew Valley for Android**, bought from Google Play (or the Galaxy
-  Store), version 1.6.15.3 or later. The PC version doesn't work with this app.
-- **SMAPI Launcher with SMAPI for Android installed.** Required. This is what
-  loads mods into the Android game.
-- **The Stardew Valley Dual Screen Mod**, which runs inside the game and feeds
-  the app.
+- **An AYN Thor** (or another dual-screen Android device; only the Thor is
+  tested).
+- **Stardew Valley**, either:
+  - **Android:** from Google Play (or the Galaxy Store), 1.6.15.3 or later,
+    with **SMAPI Launcher** and **SMAPI for Android**; or
+  - **PC:** the Steam version running in **Cinderbox**, which comes with SMAPI.
+- **The Stardew Valley Dual Screen Mod** from this repo's releases.
 - **The Stardual Valley app.**
 
 Tested on an AYN Thor (Android 13) with:
 
 | Piece | Version |
 | --- | --- |
-| Stardew Valley (Google Play) | 1.6.15.3 |
+| Stardew Valley for Android (Google Play) | 1.6.15.3 |
 | [SMAPI Launcher](https://github.com/NRTnarathip/SMAPILoader/releases) | 1.1.7 |
 | [SMAPI for Android](https://www.nexusmods.com/stardewvalley/mods/44436) | 4.3.2.5 |
-| [Stardew Valley Dual Screen Mod](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods/releases/tag/v2.0) | 2.0.0 |
+| Stardew Valley PC (Steam), in Cinderbox | 1.6.15 |
+| Cinderbox | 0.8.1 (SMAPI 4.5.2.5) |
+| Stardew Valley Dual Screen Mod | 2.1.0, from this repo's [releases](../../releases/latest) |
 | Stardual Valley | latest [release](../../releases/latest) |
 
 ## Setup
 
-### Step 1: Set up SMAPI Launcher (required)
+Do Step 1 for the version of Stardew you play (or both), then Steps 2 to 4.
 
-SMAPI Launcher runs the Android version of Stardew Valley with mods. Do this
-first; nothing else works without it.
+### Step 1a: Android game: set up SMAPI Launcher
+
+SMAPI Launcher runs the Android version of Stardew Valley with mods.
 
 1. **Install Stardew Valley** from Google Play and open it once to make sure
    it runs.
-2. **Remove other Stardew mod loaders.** If you've used Cinderbox or another
-   loader with the Android game, uninstall it and delete any leftover
-   `StardewValley/smapi-internal` folder in your device storage. Leftover
-   loader files can make the game stick on a white screen.
+2. **Remove other mod loaders for the Android game.** Delete any leftover
+   `StardewValley/smapi-internal` folder in your device storage from an older
+   loader. Leftover loader files can make the game stick on a white screen.
+   (Cinderbox's own `StardewValley/desktop` folder is fine to keep.)
 3. **Install SMAPI Launcher.** Download `SMAPI-Launcher-v1.1.7.apk` from the
    [SMAPI Launcher releases](https://github.com/NRTnarathip/SMAPILoader/releases)
    and install it. Android may ask you to allow installs from your browser or
@@ -135,16 +147,36 @@ first; nothing else works without it.
 > `Saves` folder. Always start the game from **SMAPI Launcher**, not the
 > regular Stardew Valley icon, or mods won't load.
 
+### Step 1b: PC game: set up Cinderbox
+
+Cinderbox runs the PC (Steam) version of Stardew Valley on Android, with SMAPI
+built in. Install it and set up your game by following Cinderbox's own
+instructions, then start the game once to check SMAPI loads.
+
+> [!NOTE]
+> Cinderbox keeps everything in `StardewValley/desktop/` in your device storage:
+>
+> - Mods go in `StardewValley/desktop/Mods/`
+> - Saves are in `StardewValley/desktop/Saves/`
+> - The SMAPI log is `StardewValley/desktop/ErrorLogs/SMAPI-latest.txt`
+>
+> PC and Android saves use the same format, so you can copy a save folder from
+> SMAPI Launcher's `Saves` folder into Cinderbox's (or back) to carry a farm
+> between them.
+
 ### Step 2: Install the Dual Screen mod
 
 1. Download `StardewDualScreenMod.zip` from the
-   [Releases page](../../releases/latest). It's the upstream v2.0 mod with a fix
-   for reconnecting after the app restarts.
-2. Extract it and copy the `StardewDualScreenMod` folder into
-   `Android/data/abc.smapi.gameloader/files/Mods/`.
+   [Releases page](../../releases/latest).
+2. Extract it and copy the `StardewDualScreenMod` folder into your game's
+   `Mods` folder:
+   - Android: `Android/data/abc.smapi.gameloader/files/Mods/`
+   - PC (Cinderbox): `StardewValley/desktop/Mods/`
 
-The upstream README says this mod needs SMAPI 4.5; its `manifest.json` actually
-asks for 4.0.0, and Android SMAPI 4.3.2.5 loads it without errors.
+   Replace any older `StardewDualScreenMod` folder, including Joe's 2.0 mod:
+   the app's new pages need this version.
+3. **Optional:** install Stick Cursor the same way, from
+   `StickCursor-Android.zip` or `StickCursor-PC.zip` to match your game.
 
 ### Step 3: Install Stardual Valley
 
@@ -155,11 +187,11 @@ first: both use the same package name but are signed with different keys.
 ### Step 4: Play
 
 1. Open **Stardual Valley** on the lower screen. It shows the title art and
-   says to launch Stardew Valley through SMAPI.
-2. Start the game from **SMAPI Launcher** on the top screen. When the mod
-   connects, the lower screen says to load a save.
-3. Load your farm. The lower screen switches to your day, map, farm, journal,
-   bundles, calendar and backpack.
+   says to launch Stardew Valley.
+2. Start the game on the top screen, from **SMAPI Launcher** (Android) or
+   **Cinderbox** (PC). When the mod connects, the lower screen says to load a
+   save.
+3. Load your farm. The lower screen opens on the Overview.
 
 To open the app on the lower screen over adb (display 4 on the Thor):
 
@@ -169,32 +201,42 @@ adb shell am start --display 4 -n com.wemu.dualscreenmods/com.stardual.StardualA
 
 ### Troubleshooting
 
-- **The lower screen never says "Connected".** Make sure you started the game
-  from SMAPI Launcher (not the regular Stardew icon) and that the
-  `StardewDualScreenMod` folder is in SMAPI's `Mods` folder. Check the SMAPI
-  log at `Android/data/abc.smapi.gameloader/files/ErrorLogs/SMAPI-latest.txt`:
+- **The lower screen never says "Connected".** Make sure the
+  `StardewDualScreenMod` folder is in the right `Mods` folder for your game
+  (see Step 2), and on Android that you started the game from SMAPI Launcher,
+  not the regular Stardew icon. Check the SMAPI log
+  (`Android/data/abc.smapi.gameloader/files/ErrorLogs/SMAPI-latest.txt` on
+  Android, `StardewValley/desktop/ErrorLogs/SMAPI-latest.txt` in Cinderbox):
   it should show `Listening on ws://127.0.0.1:7786` when the mod starts and
   `wemu connected` when the app connects.
-- **The game sticks on a white screen.** Use SMAPI for Android 4.3.2.5 from
-  Nexus, and remove leftover files from other mod loaders (see Step 1).
+- **The Overview says "Waiting for the game" or a page is empty.** You're
+  probably running Joe's 2.0 mod. Install `StardewDualScreenMod.zip` from this
+  repo's releases (Step 2) and restart the game.
+- **The Android game sticks on a white screen.** Use SMAPI for Android 4.3.2.5
+  from Nexus, and remove leftover files from other mod loaders (see Step 1a).
 - **The game's HUD is missing on the top screen.** That's intended: the mod
   moves that information to the lower screen. The app's Settings page has the
-  mod's options.
+  mod's options, including turning the HUD back on.
 
 ## Building the app
 
 The app can't be compiled from this repo alone: `DualScreenActivity.kt` imports
 `ThorTheme`, `ModsPage` and `SecondScreen` from shared libraries that aren't
-published here. Instead, `tools/repack-apk.sh` downloads the upstream release
-APK, applies this repo's name, icon and start screen, and signs it with your own
-key. The start screen is a small Java activity (`overlay/src`) compiled against
-stand-in declarations of the upstream classes it calls (`overlay/stubs`, not
-packaged); the script adds it to the APK as an extra dex file and makes it the
-launcher activity. It reuses the upstream screen's content. The script also runs
-`tools/smali_patches.py`, which makes the bundles and Gift Guide changes directly
-in the upstream app's unpacked code; each patch stops the build if the code it
-expects has moved, so a new upstream release can't be patched in the wrong
-place. Everything else behaves exactly as upstream:
+published here. Instead, `tools/repack-apk.sh` downloads Joe's upstream v2.0
+release APK as an untouched base and applies everything Stardual Valley changes:
+
+- **`tools/smali_patches.py`** edits the upstream app's unpacked code: the new
+  Overview page, the removed Backpack page, the Relationships, Gift Guide, Map,
+  Crafting and Fields layouts, the tab order and the bundles fix. Each patch
+  stops the build if the code it expects has moved, so a new upstream release
+  can't be patched in the wrong place.
+- **`overlay/src`** holds Stardual Valley's own Java classes (the start screen,
+  the Overview page, relationship lines and the Lookup Anything taps). They're
+  compiled against stand-in declarations of the upstream classes they call
+  (`overlay/stubs`, not packaged) and added to the APK as an extra dex file.
+- **`overlay/assets`** holds the Overview page's layout
+  (`stardual/overview.html`).
+- The app name, icon and start-screen art come from `src/main/res`.
 
 ```bash
 APKTOOL_JAR=/path/to/apktool.jar \
@@ -209,6 +251,8 @@ different key than the upstream app, uninstall the upstream app before
 installing it the first time. Keep your keystore safe and out of git: every
 later build must use the same key to update in place.
 
+The mods build separately with `dotnet`; see [mods/README.md](mods/README.md).
+
 The launcher icon is an adaptive icon
 (`src/main/res/mipmap-anydpi-v26/ic_launcher.xml`). The logo is the background
 layer (`ic_launcher_background.png`), scaled so the whole image fills the middle
@@ -218,94 +262,3 @@ layer. The foreground layer (`ic_launcher_foreground.png`) is empty. The
 the icon, regenerate those files in every `mipmap-<density>` folder from a new
 `assets/stardual-valley-logo.png` (layers: 108, 162, 216, 324 and 432 px;
 plain icons: 48, 72, 96, 144 and 192 px).
-
----
-
-## Upstream README
-
-The rest of this file is the original project's README, kept for reference. It
-describes the **PC version** of Stardew running through WEMU, so its downloads
-and installation steps are not for Stardual Valley. For Android, follow
-[Setup](#setup) above.
-
-Native lower-screen companions for games running through WEMU on the AYN Thor.
-The Android companion keeps useful information and touch controls on the lower
-display while the game remains playable on the upper display.
-
-The current release includes the DualScreen Android app and the Stardew Valley
-SMAPI integration.
-
-## Downloads
-
-Open the [latest release](https://github.com/JoeCorrell/AYN-Thor-Dualscreen-Mods/releases/latest) and download:
-
-- `DualScreen Mods.apk` for the AYN Thor lower screen.
-- `WemuSecondScreen.zip` for a complete Stardew Valley mod installation.
-- `StardewDualScreen.dll` when updating an existing mod folder manually.
-
-## Stardew Valley pages
-
-| Page | Contents |
-| --- | --- |
-| Today | Weekday, date, time, weather, luck, gold, energy, health, shipping, skills, hotbar, and all unlocked backpack rows |
-| Map | Stardew's valley map, the current location, and the farmer marker |
-| Farm | Tall, independently scrollable machine, animal, and fruit-tree lists with compact farm summaries |
-| Journal | Active quests, objectives, deadlines, rewards, and cancellation where Stardew permits it |
-| Bundles | Community Center rooms, bundle progress, and missing item icons |
-| Calendar | A fixed four-week season calendar with weekday headers, birthday portraits and labels, festivals, and travelling-cart days |
-| Settings | Appearance, visible pages, connection details, and live mod options |
-
-## Inventory controls and item details
-
-- The Today page places the backpack directly below the hotbar.
-- L/R rotates every unlocked backpack row through the active hotbar, so all
-  inventory rows remain usable without tiny transfer controls.
-- Tap selects or moves supported inventory items; hold uses or eats supported
-  items.
-- Watering cans show a compact blue capacity bar beneath the item.
-- Weapons show their special-action cooldown.
-- Skills show their current level without the removed XP-to-next-level line.
-
-Farm lists use Stardew's real machine, animal, produce, and fruit-tree data.
-Entries are arranged vertically and can be scrolled. Animals with no produce do
-not receive a placeholder item icon.
-
-Weather uses full wording such as `Sunny`, and the Today page includes the day
-of the week alongside the date, season, and time.
-
-## Installation
-
-### Android companion
-
-Install `DualScreen Mods.apk` on the AYN Thor. Android may ask you to allow
-installation from the app that opened the APK.
-
-### Stardew Valley mod
-
-The mod requires Stardew Valley 1.6 and SMAPI 4.5 or later.
-
-1. Extract `WemuSecondScreen.zip`.
-2. Copy the extracted `WemuSecondScreen` folder into Stardew Valley's `Mods`
-   directory inside the Steam container.
-3. Start Stardew Valley through SMAPI.
-
-For a manual update, replace the old DLL with `StardewDualScreen.dll` and ensure
-the mod's `manifest.json` contains:
-
-```json
-"EntryDll": "StardewDualScreen.dll"
-```
-
-The default socket is `ws://127.0.0.1:7786`. Local connections work without
-configuration. Set `AllowRemote` to `true` in the mod's `config.json` only when
-the companion must connect over the network.
-
-## Building
-
-Build the SMAPI integration from `mods/StardewSecondScreen`:
-
-```powershell
-dotnet build -c Release
-```
-
-The output is `bin/Release/net6.0/StardewDualScreen.dll`.

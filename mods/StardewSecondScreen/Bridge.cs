@@ -9,305 +9,414 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace StardewSecondScreen
+namespace StardewSecondScreen;
+
+internal sealed class Bridge : IDisposable
 {
+	private const string HandshakeGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
 
-    internal sealed class Bridge : IDisposable
-    {
+	private readonly int _port;
 
-        private const string HandshakeGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+	private readonly Action<string> _log;
 
-        private readonly int _port;
-        private readonly Action<string> _log;
-        private readonly CancellationTokenSource _cancel = new();
-        private readonly List<TcpClient> _clients = new();
-        private readonly object _lock = new();
+	private readonly CancellationTokenSource _cancel = new CancellationTokenSource();
 
-        private readonly Dictionary<string, string> _latest = new();
+	private readonly List<TcpClient> _clients = new List<TcpClient>();
 
-        private readonly ConcurrentDictionary<TcpClient, ConcurrentQueue<byte[]>> _outbound = new();
-        private readonly ConcurrentDictionary<TcpClient, bool> _writing = new();
+	private readonly object _lock = new object();
 
-        private const int OutboundLimit = 32;
+	private readonly Dictionary<string, string> _latest = new Dictionary<string, string>();
 
-        private TcpListener? _listener;
+	private readonly ConcurrentDictionary<TcpClient, ConcurrentQueue<byte[]>> _outbound = new ConcurrentDictionary<TcpClient, ConcurrentQueue<byte[]>>();
 
-        private readonly bool _remote;
+	private readonly ConcurrentDictionary<TcpClient, bool> _writing = new ConcurrentDictionary<TcpClient, bool>();
 
-        public Bridge(int port, Action<string> log, bool remote = false)
-        {
-            _port = port;
-            _log = log;
-            _remote = remote;
-        }
+	private const int OutboundLimit = 1024;
 
-        public bool HasClients
-        {
-            get { lock (_lock) { return _clients.Count > 0; } }
-        }
+	private TcpListener? _listener;
 
-        private int _joins;
+	private readonly bool _remote;
 
-        /// <summary>Goes up by one every time the app connects, including reconnects after a
-        /// crash, so the mod can tell a fresh app apart from one it has already filled in.</summary>
-        public int Joins => Volatile.Read(ref _joins);
+	private int _joins;
 
-        public void Start()
-        {
-            try
-            {
+	/// <summary>Goes up every time the app connects, including reconnects after it restarts.</summary>
+	public int Joins => Volatile.Read(ref _joins);
 
-                _listener = new TcpListener(_remote ? IPAddress.Any : IPAddress.Loopback, _port);
-                _listener.Start();
-                _log(_remote
-                    ? $"Listening on ws://0.0.0.0:{_port} (this machine and the network)"
-                    : $"Listening on ws://127.0.0.1:{_port}");
-                _ = Task.Run(AcceptLoop);
-            }
-            catch (Exception e)
-            {
-                _log($"Could not open the socket: {e.Message}");
-            }
-        }
+	public bool HasClients
+	{
+		get
+		{
+			lock (_lock)
+			{
+				return _clients.Count > 0;
+			}
+		}
+	}
 
-        private async Task AcceptLoop()
-        {
-            while (!_cancel.IsCancellationRequested && _listener != null)
-            {
-                TcpClient client;
-                try { client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false); }
-                catch { return; }
+	public event Action<string>? MessageReceived;
 
-                _ = Task.Run(() => Serve(client));
-            }
-        }
+	public Bridge(int port, Action<string> log, bool remote = false)
+	{
+		_port = port;
+		_log = log;
+		_remote = remote;
+	}
 
-        private async Task Serve(TcpClient client)
-        {
-            try
-            {
-                client.NoDelay = true;
-                var stream = client.GetStream();
-                var key = await ReadHandshakeKey(stream).ConfigureAwait(false);
-                if (key == null) { client.Close(); return; }
+	public void Start()
+	{
+		try
+		{
+			_listener = new TcpListener(_remote ? IPAddress.Any : IPAddress.Loopback, _port);
+			_listener.Start();
+			_log(_remote ? $"Listening on ws://0.0.0.0:{_port} (this machine and the network)" : $"Listening on ws://127.0.0.1:{_port}");
+			Task.Run((Func<Task?>)AcceptLoop);
+		}
+		catch (Exception ex)
+		{
+			_log("Could not open the socket: " + ex.Message);
+		}
+	}
 
-                using var sha = SHA1.Create();
-                var accept = Convert.ToBase64String(
-                    sha.ComputeHash(Encoding.ASCII.GetBytes(key + HandshakeGuid)));
-                var response =
-                    "HTTP/1.1 101 Switching Protocols\r\n" +
-                    "Upgrade: websocket\r\n" +
-                    "Connection: Upgrade\r\n" +
-                    $"Sec-WebSocket-Accept: {accept}\r\n\r\n";
-                var bytes = Encoding.ASCII.GetBytes(response);
-                await stream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(false);
+	private async Task AcceptLoop()
+	{
+		while (!_cancel.IsCancellationRequested && _listener != null)
+		{
+			TcpClient client;
+			try
+			{
+				client = await _listener.AcceptTcpClientAsync().ConfigureAwait(continueOnCapturedContext: false);
+			}
+			catch
+			{
+				break;
+			}
+			Task.Run(() => Serve(client));
+		}
+	}
 
-                lock (_lock) { _clients.Add(client); }
-                Interlocked.Increment(ref _joins);
-                _log("wemu connected");
+	private async Task Serve(TcpClient client)
+	{
+		_ = 2;
+		try
+		{
+			client.NoDelay = true;
+			NetworkStream stream = client.GetStream();
+			string text = await ReadHandshakeKey(stream).ConfigureAwait(continueOnCapturedContext: false);
+			if (text == null)
+			{
+				client.Close();
+				return;
+			}
+			using SHA1 sha = SHA1.Create();
+			string text2 = Convert.ToBase64String(sha.ComputeHash(Encoding.ASCII.GetBytes(text + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")));
+			string s = "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: " + text2 + "\r\n\r\n";
+			byte[] bytes = Encoding.ASCII.GetBytes(s);
+			await stream.WriteAsync(bytes, 0, bytes.Length).ConfigureAwait(continueOnCapturedContext: false);
+			lock (_lock)
+			{
+				_clients.Add(client);
+			}
+			Interlocked.Increment(ref _joins);
+			_log("wemu connected");
+			List<string> list;
+			lock (_lock)
+			{
+				list = new List<string>(_latest.Values);
+			}
+			foreach (string item in list)
+			{
+				Send(client, item);
+			}
+			await DrainUntilClosed(client, stream).ConfigureAwait(continueOnCapturedContext: false);
+		}
+		catch (Exception ex)
+		{
+			_log("Handshake failed: " + ex.Message);
+		}
+		finally
+		{
+			lock (_lock)
+			{
+				_clients.Remove(client);
+			}
+			try
+			{
+				client.Close();
+			}
+			catch
+			{
+			}
+		}
+	}
 
-                List<string> backlog;
-                lock (_lock) { backlog = new List<string>(_latest.Values); }
-                foreach (var frame in backlog) Send(client, frame);
+	private static async Task<string?> ReadHandshakeKey(NetworkStream stream)
+	{
+		byte[] buffer = new byte[4096];
+		int read = 0;
+		while (read < buffer.Length)
+		{
+			int num = await stream.ReadAsync(buffer, read, buffer.Length - read).ConfigureAwait(continueOnCapturedContext: false);
+			if (num <= 0)
+			{
+				return null;
+			}
+			read += num;
+			string text = Encoding.ASCII.GetString(buffer, 0, read);
+			if (!text.Contains("\r\n\r\n"))
+			{
+				continue;
+			}
+			string[] array = text.Split(new string[1] { "\r\n" }, StringSplitOptions.None);
+			foreach (string text2 in array)
+			{
+				if (text2.StartsWith("Sec-WebSocket-Key:", StringComparison.OrdinalIgnoreCase))
+				{
+					return text2.Substring("Sec-WebSocket-Key:".Length).Trim();
+				}
+			}
+			return null;
+		}
+		return null;
+	}
 
-                await DrainUntilClosed(client, stream).ConfigureAwait(false);
-            }
-            catch (Exception e)
-            {
-                _log($"Handshake failed: {e.Message}");
-            }
-            finally
-            {
-                lock (_lock) { _clients.Remove(client); }
-                try { client.Close(); } catch { }
-            }
-        }
+	private async Task DrainUntilClosed(TcpClient client, NetworkStream stream)
+	{
+		byte[] header = new byte[8];
+		try
+		{
+			while (client.Connected && !_cancel.IsCancellationRequested && await ReadExactly(stream, header, 2).ConfigureAwait(continueOnCapturedContext: false))
+			{
+				int opcode = header[0] & 0xF;
+				if (opcode == 8)
+				{
+					break;
+				}
+				bool masked = (header[1] & 0x80) != 0;
+				long length = header[1] & 0x7F;
+				switch (length)
+				{
+				case 126L:
+					if (await ReadExactly(stream, header, 2).ConfigureAwait(continueOnCapturedContext: false))
+					{
+						length = (header[0] << 8) | header[1];
+						break;
+					}
+					goto end_IL_0459;
+				case 127L:
+					if (await ReadExactly(stream, header, 8).ConfigureAwait(continueOnCapturedContext: false))
+					{
+						length = 0L;
+						for (int i = 0; i < 8; i++)
+						{
+							length = (length << 8) | header[i];
+						}
+						break;
+					}
+					goto end_IL_0459;
+				}
+				if (length < 0 || length > 65536)
+				{
+					break;
+				}
+				byte[] mask = new byte[4];
+				bool flag = masked;
+				if (flag)
+				{
+					flag = !(await ReadExactly(stream, mask, 4).ConfigureAwait(continueOnCapturedContext: false));
+				}
+				if (flag)
+				{
+					break;
+				}
+				byte[] payload = new byte[length];
+				bool flag2 = length > 0;
+				bool flag3 = flag2;
+				if (flag3)
+				{
+					flag3 = !(await ReadExactly(stream, payload, (int)length).ConfigureAwait(continueOnCapturedContext: false));
+				}
+				if (flag3)
+				{
+					break;
+				}
+				if (masked)
+				{
+					for (int j = 0; j < payload.Length; j++)
+					{
+						payload[j] ^= mask[j % 4];
+					}
+				}
+				if (opcode == 1 && payload.Length != 0)
+				{
+					string obj = Encoding.UTF8.GetString(payload);
+					try
+					{
+						MessageReceived?.Invoke(obj);
+					}
+					catch
+					{
+					}
+				}
+				continue;
+				end_IL_0459:
+				break;
+			}
+		}
+		catch
+		{
+		}
+		_log("wemu disconnected");
+	}
 
-        private static async Task<string?> ReadHandshakeKey(NetworkStream stream)
-        {
-            var buffer = new byte[4096];
-            var read = 0;
+	private static async Task<bool> ReadExactly(NetworkStream stream, byte[] buffer, int count)
+	{
+		int num;
+		for (int read = 0; read < count; read += num)
+		{
+			num = await stream.ReadAsync(buffer, read, count - read).ConfigureAwait(continueOnCapturedContext: false);
+			if (num <= 0)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
 
-            while (read < buffer.Length)
-            {
-                var got = await stream.ReadAsync(buffer, read, buffer.Length - read).ConfigureAwait(false);
-                if (got <= 0) return null;
-                read += got;
-                var soFar = Encoding.ASCII.GetString(buffer, 0, read);
-                if (!soFar.Contains("\r\n\r\n")) continue;
+	public void Send(string payload)
+	{
+		List<TcpClient> list;
+		lock (_lock)
+		{
+			list = new List<TcpClient>(_clients);
+		}
+		foreach (TcpClient item in list)
+		{
+			Send(item, payload);
+		}
+	}
 
-                foreach (var line in soFar.Split(new[] { "\r\n" }, StringSplitOptions.None))
-                {
-                    if (!line.StartsWith("Sec-WebSocket-Key:", StringComparison.OrdinalIgnoreCase))
-                        continue;
-                    return line.Substring("Sec-WebSocket-Key:".Length).Trim();
-                }
-                return null;
-            }
-            return null;
-        }
+	public void Broadcast(string kind, string payload)
+	{
+		List<TcpClient> list;
+		lock (_lock)
+		{
+			_latest[kind] = payload;
+			list = new List<TcpClient>(_clients);
+		}
+		foreach (TcpClient item in list)
+		{
+			Send(item, payload);
+		}
+	}
 
-        public event Action<string>? MessageReceived;
+	private void Send(TcpClient client, string payload)
+	{
+		try
+		{
+			if (!client.Connected)
+			{
+				return;
+			}
+			byte[] bytes = Encoding.UTF8.GetBytes(payload);
+			using MemoryStream memoryStream = new MemoryStream(bytes.Length + 10);
+			memoryStream.WriteByte(129);
+			if (bytes.Length < 126)
+			{
+				memoryStream.WriteByte((byte)bytes.Length);
+			}
+			else if (bytes.Length <= 65535)
+			{
+				memoryStream.WriteByte(126);
+				memoryStream.WriteByte((byte)(bytes.Length >> 8));
+				memoryStream.WriteByte((byte)(bytes.Length & 0xFF));
+			}
+			else
+			{
+				memoryStream.WriteByte(127);
+				for (int num = 56; num >= 0; num -= 8)
+				{
+					memoryStream.WriteByte((byte)((long)bytes.Length >> num));
+				}
+			}
+			memoryStream.Write(bytes, 0, bytes.Length);
+			Enqueue(client, memoryStream.ToArray());
+		}
+		catch
+		{
+			lock (_lock)
+			{
+				_clients.Remove(client);
+			}
+		}
+	}
 
-        private async Task DrainUntilClosed(TcpClient client, NetworkStream stream)
-        {
-            var header = new byte[8];
-            try
-            {
-                while (client.Connected && !_cancel.IsCancellationRequested)
-                {
-                    if (!await ReadExactly(stream, header, 2).ConfigureAwait(false)) break;
+	private void Enqueue(TcpClient client, byte[] frame)
+	{
+		ConcurrentQueue<byte[]> queue = _outbound.GetOrAdd(client, (TcpClient _) => new ConcurrentQueue<byte[]>());
+		while (queue.Count >= 1024)
+		{
+			queue.TryDequeue(out byte[] _);
+		}
+		queue.Enqueue(frame);
+		if (_writing.TryAdd(client, value: true))
+		{
+			Task.Run(() => WriteLoop(client, queue));
+		}
+	}
 
-                    var opcode = header[0] & 0x0F;
-                    if (opcode == 0x8) break;
+	private async Task WriteLoop(TcpClient client, ConcurrentQueue<byte[]> queue)
+	{
+		_ = 1;
+		try
+		{
+			NetworkStream stream = client.GetStream();
+			while (client.Connected && !_cancel.IsCancellationRequested)
+			{
+				if (!queue.TryDequeue(out byte[] result))
+				{
+					await Task.Delay(15, _cancel.Token).ConfigureAwait(continueOnCapturedContext: false);
+				}
+				else
+				{
+					await stream.WriteAsync(result, 0, result.Length).ConfigureAwait(continueOnCapturedContext: false);
+				}
+			}
+		}
+		catch
+		{
+		}
+		finally
+		{
+			_outbound.TryRemove(client, out ConcurrentQueue<byte[]> _);
+			_writing.TryRemove(client, out var _);
+		}
+	}
 
-                    var masked = (header[1] & 0x80) != 0;
-                    long length = header[1] & 0x7F;
-
-                    if (length == 126)
-                    {
-                        if (!await ReadExactly(stream, header, 2).ConfigureAwait(false)) break;
-                        length = (header[0] << 8) | header[1];
-                    }
-                    else if (length == 127)
-                    {
-                        if (!await ReadExactly(stream, header, 8).ConfigureAwait(false)) break;
-                        length = 0;
-                        for (var i = 0; i < 8; i++) length = (length << 8) | header[i];
-                    }
-
-                    if (length < 0 || length > 64 * 1024) break;
-
-                    var mask = new byte[4];
-                    if (masked && !await ReadExactly(stream, mask, 4).ConfigureAwait(false)) break;
-
-                    var payload = new byte[length];
-                    if (length > 0 && !await ReadExactly(stream, payload, (int)length).ConfigureAwait(false)) break;
-                    if (masked)
-                    {
-                        for (var i = 0; i < payload.Length; i++) payload[i] ^= mask[i % 4];
-                    }
-
-                    if (opcode == 0x1 && payload.Length > 0)
-                    {
-                        var text = Encoding.UTF8.GetString(payload);
-                        try { MessageReceived?.Invoke(text); } catch { }
-                    }
-                }
-            }
-            catch {  }
-            _log("wemu disconnected");
-        }
-
-        private static async Task<bool> ReadExactly(NetworkStream stream, byte[] buffer, int count)
-        {
-            var read = 0;
-            while (read < count)
-            {
-                var got = await stream.ReadAsync(buffer, read, count - read).ConfigureAwait(false);
-                if (got <= 0) return false;
-                read += got;
-            }
-            return true;
-        }
-
-        public void Send(string payload)
-        {
-            List<TcpClient> targets;
-            lock (_lock) { targets = new List<TcpClient>(_clients); }
-            foreach (var client in targets) Send(client, payload);
-        }
-
-        public void Broadcast(string kind, string payload)
-        {
-            List<TcpClient> targets;
-            lock (_lock)
-            {
-                _latest[kind] = payload;
-                targets = new List<TcpClient>(_clients);
-            }
-            foreach (var client in targets) Send(client, payload);
-        }
-
-        private void Send(TcpClient client, string payload)
-        {
-            try
-            {
-                if (!client.Connected) return;
-                var body = Encoding.UTF8.GetBytes(payload);
-
-                using var frame = new MemoryStream(body.Length + 10);
-                frame.WriteByte(0x81);
-
-                if (body.Length < 126)
-                {
-                    frame.WriteByte((byte)body.Length);
-                }
-                else if (body.Length <= ushort.MaxValue)
-                {
-                    frame.WriteByte(126);
-                    frame.WriteByte((byte)(body.Length >> 8));
-                    frame.WriteByte((byte)(body.Length & 0xFF));
-                }
-                else
-                {
-                    frame.WriteByte(127);
-                    for (var shift = 56; shift >= 0; shift -= 8)
-                        frame.WriteByte((byte)((long)body.Length >> shift));
-                }
-
-                frame.Write(body, 0, body.Length);
-                Enqueue(client, frame.ToArray());
-            }
-            catch
-            {
-                lock (_lock) { _clients.Remove(client); }
-            }
-        }
-
-        private void Enqueue(TcpClient client, byte[] frame)
-        {
-            var queue = _outbound.GetOrAdd(client, _ => new ConcurrentQueue<byte[]>());
-            while (queue.Count >= OutboundLimit) queue.TryDequeue(out _);
-            queue.Enqueue(frame);
-
-            if (_writing.TryAdd(client, true)) _ = Task.Run(() => WriteLoop(client, queue));
-        }
-
-        private async Task WriteLoop(TcpClient client, ConcurrentQueue<byte[]> queue)
-        {
-            try
-            {
-                var stream = client.GetStream();
-                while (client.Connected && !_cancel.IsCancellationRequested)
-                {
-                    if (!queue.TryDequeue(out var frame))
-                    {
-                        await Task.Delay(15, _cancel.Token).ConfigureAwait(false);
-                        continue;
-                    }
-                    await stream.WriteAsync(frame, 0, frame.Length).ConfigureAwait(false);
-                }
-            }
-            catch {  }
-            finally
-            {
-
-                _outbound.TryRemove(client, out _);
-                _writing.TryRemove(client, out _);
-            }
-        }
-
-        public void Dispose()
-        {
-            _cancel.Cancel();
-            List<TcpClient> targets;
-            lock (_lock) { targets = new List<TcpClient>(_clients); _clients.Clear(); }
-            foreach (var client in targets)
-            {
-                try { client.Close(); } catch { }
-            }
-            try { _listener?.Stop(); } catch { }
-        }
-    }
+	public void Dispose()
+	{
+		_cancel.Cancel();
+		List<TcpClient> list;
+		lock (_lock)
+		{
+			list = new List<TcpClient>(_clients);
+			_clients.Clear();
+		}
+		foreach (TcpClient item in list)
+		{
+			try
+			{
+				item.Close();
+			}
+			catch
+			{
+			}
+		}
+		try
+		{
+			_listener?.Stop();
+		}
+		catch
+		{
+		}
+	}
 }

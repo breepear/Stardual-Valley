@@ -1,0 +1,9 @@
+{
+  "Name": "Stick Cursor",
+  "Author": "Stardual",
+  "Version": "1.8.0",
+  "Description": "Console-style controls on Android: the right stick shows and moves the pointer, L2 / R2 step through the toolbar and wrap around, and L1 jumps to the first slot and R1 jumps 12 slots at a time.",
+  "UniqueID": "Stardual.StickCursor",
+  "EntryDll": "StickCursor.dll",
+  "MinimumApiVersion": "4.0.0"
+}

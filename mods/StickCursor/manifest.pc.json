@@ -1,0 +1,9 @@
+{
+  "Name": "Stick Cursor (PC)",
+  "Author": "Stardual",
+  "Version": "1.9.0",
+  "Description": "Console-style pointer for the PC game in Cinderbox: the right stick shows and moves the pointer, A acts on the tile under it, and holding something shows where it will go.",
+  "UniqueID": "Stardual.StickCursor",
+  "EntryDll": "StickCursor.dll",
+  "MinimumApiVersion": "4.0.0"
+}

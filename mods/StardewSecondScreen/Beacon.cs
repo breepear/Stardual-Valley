@@ -5,74 +5,77 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace StardewSecondScreen
+namespace StardewSecondScreen;
+
+internal sealed class Beacon : IDisposable
 {
-    internal sealed class Beacon : IDisposable
-    {
-        private const int BeaconPort = 7787;
-        private const int IntervalMillis = 3000;
+	private const int BeaconPort = 7787;
 
-        private readonly int _port;
-        private readonly Func<string> _describe;
-        private readonly Action<string> _log;
-        private readonly CancellationTokenSource _cancel = new();
+	private const int IntervalMillis = 3000;
 
-        public Beacon(int port, Func<string> describe, Action<string> log)
-        {
-            _port = port;
-            _describe = describe;
-            _log = log;
-        }
+	private readonly int _port;
 
-        public void Start()
-        {
-            _ = Task.Run(Announce);
-        }
+	private readonly Func<string> _describe;
 
-        private async Task Announce()
-        {
-            UdpClient? socket = null;
-            try
-            {
-                socket = new UdpClient { EnableBroadcast = true };
-                var target = new IPEndPoint(IPAddress.Broadcast, BeaconPort);
-                _log($"Announcing on the network every {IntervalMillis / 1000} seconds.");
+	private readonly Action<string> _log;
 
-                while (!_cancel.IsCancellationRequested)
-                {
-                    try
-                    {
-                        var payload = Encoding.UTF8.GetBytes(_describe());
-                        await socket.SendAsync(payload, payload.Length, target)
-                            .ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                    }
+	private readonly CancellationTokenSource _cancel = new CancellationTokenSource();
 
-                    try
-                    {
-                        await Task.Delay(IntervalMillis, _cancel.Token).ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                        break;
-                    }
-                }
-            }
-            catch (Exception failure)
-            {
-                _log("Could not announce on the network: " + failure.Message);
-            }
-            finally
-            {
-                socket?.Dispose();
-            }
-        }
+	public Beacon(int port, Func<string> describe, Action<string> log)
+	{
+		_port = port;
+		_describe = describe;
+		_log = log;
+	}
 
-        public void Dispose()
-        {
-            _cancel.Cancel();
-        }
-    }
+	public void Start()
+	{
+		Task.Run((Func<Task?>)Announce);
+	}
+
+	private async Task Announce()
+	{
+		UdpClient socket = null;
+		try
+		{
+			socket = new UdpClient
+			{
+				EnableBroadcast = true
+			};
+			IPEndPoint target = new IPEndPoint(IPAddress.Broadcast, 7787);
+			_log($"Announcing on the network every {3} seconds.");
+			while (!_cancel.IsCancellationRequested)
+			{
+				try
+				{
+					byte[] bytes = Encoding.UTF8.GetBytes(_describe());
+					await socket.SendAsync(bytes, bytes.Length, target).ConfigureAwait(continueOnCapturedContext: false);
+				}
+				catch
+				{
+				}
+				try
+				{
+					await Task.Delay(3000, _cancel.Token).ConfigureAwait(continueOnCapturedContext: false);
+				}
+				catch
+				{
+					break;
+				}
+			}
+		}
+		catch (Exception ex)
+		{
+			_log("Could not announce on the network: " + ex.Message);
+		}
+		finally
+		{
+			socket?.Dispose();
+		}
+	}
+
+	public void Dispose()
+	{
+		_cancel.Cancel();
+	}
 }

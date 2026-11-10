@@ -1,7 +1,9 @@
-# WEMU Second Screen for Stardew Valley
+# Stardew Valley Dual Screen Mod
 
-A SMAPI mod that publishes live Stardew Valley state and game artwork to WEMU's
-lower-screen companion.
+A SMAPI mod that publishes live Stardew Valley state and game artwork to the
+Stardual Valley lower-screen app. Originally by Profmags for WEMU; this copy is
+adapted for Stardual Valley and runs on both Stardew Valley for Android (SMAPI
+Launcher) and the PC version (Cinderbox).
 
 It reads the game and sends it over a local socket. Gameplay state is read
 through SMAPI without patching Stardew's methods.
@@ -10,12 +12,13 @@ through SMAPI without patching Stardew's methods.
 
 | Page | Contents |
 | --- | --- |
+| `Overview` | Things to do today (birthdays, watering, harvests, machines, animals, quests, mail, festivals) and ideas for when you're bored (fish to catch, gifts, museum and bundle items, cooking, shipping, the mines) |
 | `Today` | Weekday, date, time, weather, luck, gold, energy, health, shipping, history, skills, hotbar, and backpack |
 | `Map` | Valley map, current place, and farmer marker |
 | `Farm` | Independently scrollable machine, animal, and fruit-tree lists with farm summaries |
 | `Journal` | Expandable active quests, objectives, deadlines, and cancellation where allowed |
 | `Bundles` | Community Center progress and missing items |
-| `Calendar` | Fixed four-week calendar with NPC birthday portraits and labels, festivals, and travelling-cart days |
+| `Calendar` | Fixed four-week calendar with NPC birthday portraits and labels, festivals, and traveling-cart days |
 | `Settings` | Appearance, page visibility, connection details, and live mod configuration |
 
 ## What it sends
@@ -36,9 +39,11 @@ through SMAPI without patching Stardew's methods.
 - Quests with their current objective, and special orders with their deadlines
 - Every skill and its current level
 - Recipes you have the ingredients to craft or cook right now
+- Each villager's relationship ("Single", "Married to Pierre", "Dating you")
+- The Overview: today's to-do list and ideas for when you're bored
 - The season's calendar: birthdays with portraits, and festivals with the time
   and place they run
-- Whether the travelling cart is in the forest today
+- Whether the traveling cart is in the forest today
 - How deep you have been in the mines and Skull Cavern
 - Museum donations, and anything in your bag Gunther would take
 - The game's own interface art, so the panel is drawn out of Stardew's pixels
@@ -53,6 +58,8 @@ the panel repeats all of it. It goes back the moment the screen disconnects.
 - Hold a supported item to eat or use it
 - Sort the bag
 - Cancel a quest when Stardew allows it
+- Open Lookup Anything's panel for a villager (tap them on the Relationships
+  page or the Overview)
 - Press L/R to rotate each unlocked backpack row through the active hotbar
 
 The Today page keeps the hotbar and all unlocked backpack rows together. L/R is
@@ -89,13 +96,18 @@ few seconds, so the app can find it without an address being typed.
 
 `AllowRemote` is the one option with no switch on the panel. It changes who can
 reach a running save, so it is a deliberate act at a keyboard rather than
-something tapped while looking for the backdrop colour. Off, the socket is
+something tapped while looking for the backdrop color. Off, the socket is
 loopback only.
 
 ## Installing
 
-Copy the folder into the game's `Mods` directory, next to SMAPI's own. It needs
-SMAPI 4.5 or later and Stardew Valley 1.6.
+Copy the folder into the game's `Mods` folder:
+
+- Android (SMAPI Launcher): `Android/data/abc.smapi.gameloader/files/Mods/`
+- PC (Cinderbox): `StardewValley/desktop/Mods/`
+
+It needs Stardew Valley 1.6 and SMAPI 4.0 or later. Tested with SMAPI for
+Android 4.3.2.5 and with SMAPI 4.5.2.5 in Cinderbox.
 
 ## Building
 

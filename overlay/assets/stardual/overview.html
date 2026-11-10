@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Overview</title>
+<style>
+  :root {
+    --row: #f9da95;
+    --row-done: #f3cf86;
+    --rule: #d6aa67;
+    --ink: #2f1c11;
+    --sub: #6b4d2e;
+    --warn: #a63a17;
+    --good: #3f6b1d;
+    --bad: #a63a17;
+    --chip: #e59436;
+    --chip-ink: #2f1c11;
+    --track: #e6b466;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: transparent; color: var(--ink);
+    font-family: sans-serif; overflow: hidden; user-select: none; }
+  /* Pinned to the window, not height: 100%: the page loads before the WebView has a size,
+     and a percentage height measured then stays at zero. */
+  body { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; }
+  img { image-rendering: pixelated; }
+
+  .strip { display: flex; gap: 4px; padding: 0 0 4px; }
+  .stat { flex: 1; background: var(--row); border: 1px solid var(--rule); padding: 4px 8px; min-width: 0; }
+  .stat .label { font-size: 10px; color: var(--sub); }
+  .stat .value { font-size: 13px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    display: flex; align-items: center; gap: 5px; }
+  .stat .value img { height: 12px; }
+  .good { color: var(--good); }
+  .bad { color: var(--bad); }
+
+  .columns { flex: 1; display: flex; gap: 4px; min-height: 0; }
+  .column { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--row); border: 1px solid var(--rule); }
+  .head { display: flex; align-items: baseline; justify-content: space-between; padding: 5px 8px 4px;
+    border-bottom: 1px solid var(--rule); }
+  .head h2 { margin: 0; font-size: 14px; }
+  .head .count { font-size: 10.5px; color: var(--sub); }
+  .list { flex: 1; overflow-y: auto; }
+  .list::-webkit-scrollbar { width: 5px; }
+  .list::-webkit-scrollbar-track { background: var(--track); }
+  .list::-webkit-scrollbar-thumb { background: #b06a2a; }
+
+  .row { display: flex; align-items: center; gap: 7px; padding: 6px 8px; border-bottom: 1px solid var(--rule); min-height: 42px; }
+  .row:active { background: var(--row-done); }
+  .row.done { background: var(--row-done); }
+  .row.done .title { text-decoration: line-through; color: var(--sub); }
+  .row.done .icon { opacity: .55; }
+  .check { width: 16px; height: 16px; flex: none; }
+  .icon { width: 28px; height: 28px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .icon img { max-width: 28px; max-height: 28px; }
+  .icon img.portrait { width: 28px; height: 28px; border-radius: 2px; }
+  .text { flex: 1; min-width: 0; }
+  .title { font-size: 12.5px; font-weight: bold; line-height: 1.2; }
+  .detail { font-size: 10.5px; color: var(--sub); line-height: 1.25; margin-top: 1px; }
+  .warn .detail { color: var(--warn); font-weight: bold; }
+  .tag { flex: none; font-size: 9.5px; font-weight: bold; background: var(--chip); color: var(--chip-ink);
+    border: 1px solid #b06a2a; padding: 1px 5px; }
+  .empty { padding: 18px 12px; text-align: center; font-size: 12px; color: var(--sub); line-height: 1.4; }
+  .dot { width: 10px; height: 10px; border: 2px solid var(--ink); background: var(--row); flex: none; }
+</style>
+</head>
+<body>
+  <div class="strip">
+    <div class="stat"><div class="label">Today</div><div class="value" id="date">Waiting for the game</div></div>
+    <div class="stat"><div class="label">Tomorrow</div><div class="value" id="tomorrow">–</div></div>
+    <div class="stat"><div class="label">Luck</div><div class="value" id="luck">–</div></div>
+  </div>
+  <div class="columns">
+    <section class="column">
+      <div class="head"><h2>To do</h2><span class="count" id="todo-count"></span></div>
+      <div class="list" id="todo"><div class="empty">Load a save to see your day.</div></div>
+    </section>
+    <section class="column">
+      <div class="head"><h2>When you're bored</h2><span class="count" id="bored-count"></span></div>
+      <div class="list" id="bored"><div class="empty">Ideas show up once a save is loaded.</div></div>
+    </section>
+  </div>
+<script>
+  var state = null;
+  var ticked = {};
+  var checkOff = '', checkOn = '';
+
+  function storageKey() { return 'stardual-ticked-' + (state ? state.day : ''); }
+  function loadTicked() {
+    try { ticked = JSON.parse(localStorage.getItem(storageKey()) || '{}') || {}; } catch (e) { ticked = {}; }
+    try {
+      // Only keep today's ticks.
+      for (var i = localStorage.length - 1; i >= 0; i--) {
+        var k = localStorage.key(i);
+        if (k && k.indexOf('stardual-ticked-') === 0 && k !== storageKey()) localStorage.removeItem(k);
+      }
+    } catch (e) {}
+  }
+  function saveTicked() { try { localStorage.setItem(storageKey(), JSON.stringify(ticked)); } catch (e) {} }
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function png(data, cls) {
+    var i = new Image();
+    i.src = 'data:image/png;base64,' + data;
+    if (cls) i.className = cls;
+    return i;
+  }
+  function checkbox(on) {
+    var data = on ? checkOn : checkOff;
+    if (data) { var i = png(data, 'check'); return i; }
+    var d = el('div', 'dot'); if (on) d.style.background = '#6a9a2a'; return d;
+  }
+  function iconFor(row) {
+    var box = el('div', 'icon');
+    if (row.icon) box.appendChild(png(row.icon, row.npc ? 'portrait' : ''));
+    return box;
+  }
+
+  function isDone(row) { return row.done === '1' || !!ticked[row.id]; }
+
+  function drawTodo() {
+    var list = document.getElementById('todo');
+    list.innerHTML = '';
+    var rows = (state.todo || []).slice();
+    // Things still to do first, finished ones at the bottom, otherwise as the mod ordered them.
+    rows.sort(function (a, b) { return (isDone(a) ? 1 : 0) - (isDone(b) ? 1 : 0); });
+    var done = 0;
+    rows.forEach(function (row) {
+      var finished = isDone(row);
+      if (finished) done++;
+      var r = el('div', 'row' + (finished ? ' done' : '') + (row.tone === 'warn' && !finished ? ' warn' : ''));
+      r.appendChild(checkbox(finished));
+      r.appendChild(iconFor(row));
+      var t = el('div', 'text');
+      t.appendChild(el('div', 'title', row.title));
+      if (row.detail) t.appendChild(el('div', 'detail', row.detail));
+      r.appendChild(t);
+      r.addEventListener('click', function () {
+        if (row.done === '1') { if (row.npc) lookup(row.npc); return; } // the game already counts it as done
+        if (ticked[row.id]) delete ticked[row.id]; else ticked[row.id] = 1;
+        saveTicked();
+        drawTodo();
+      });
+      list.appendChild(r);
+    });
+    if (rows.length === 0) list.appendChild(el('div', 'empty', 'Nothing to do today. Enjoy the valley.'));
+    document.getElementById('todo-count').textContent = rows.length ? done + ' of ' + rows.length + ' done' : '';
+  }
+
+  function drawBored() {
+    var list = document.getElementById('bored');
+    list.innerHTML = '';
+    var rows = state.bored || [];
+    rows.forEach(function (row) {
+      var r = el('div', 'row');
+      r.appendChild(iconFor(row));
+      var t = el('div', 'text');
+      t.appendChild(el('div', 'title', row.title));
+      if (row.detail) t.appendChild(el('div', 'detail', row.detail));
+      r.appendChild(t);
+      if (row.tag) r.appendChild(el('span', 'tag', row.tag));
+      if (row.npc) r.addEventListener('click', function () { lookup(row.npc); });
+      list.appendChild(r);
+    });
+    if (rows.length === 0) list.appendChild(el('div', 'empty', 'No ideas right now. Check back after your next errand.'));
+    document.getElementById('bored-count').textContent = rows.length ? rows.length + (rows.length === 1 ? ' idea' : ' ideas') : '';
+  }
+
+  function drawStrip() {
+    document.getElementById('date').textContent = state.date + (state.year ? ', year ' + state.year : '');
+    var tomorrow = document.getElementById('tomorrow');
+    tomorrow.innerHTML = '';
+    if (state.tomorrowIcon) tomorrow.appendChild(png(state.tomorrowIcon));
+    tomorrow.appendChild(el('span', '', state.tomorrow || '–'));
+    var luck = document.getElementById('luck');
+    luck.textContent = state.luck || '–';
+    luck.className = 'value' + (state.luckTone ? ' ' + state.luckTone : '');
+  }
+
+  function lookup(npc) { try { if (window.Stardual) window.Stardual.lookup(npc); } catch (e) {} }
+
+  window.stardualRender = function (raw) {
+    try {
+      var next = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      var newDay = !state || state.day !== next.day;
+      state = next;
+      checkOff = state.checkOff || checkOff;
+      checkOn = state.checkOn || checkOn;
+      if (newDay) loadTicked();
+      drawStrip();
+      drawTodo();
+      drawBored();
+    } catch (e) {}
+  };
+</script>
+</body>
+</html>

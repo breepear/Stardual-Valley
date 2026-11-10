@@ -73,6 +73,11 @@ if ! grep -q 'android:icon=' "$WORK/app/AndroidManifest.xml"; then
     "$WORK/app/AndroidManifest.xml"
 fi
 
+echo "Adding the Overview page"
+# overlay/assets holds the web page the Overview tab shows (see StardualOverview.java).
+mkdir -p "$WORK/app/assets"
+cp -R "$REPO_ROOT/overlay/assets/." "$WORK/app/assets/"
+
 echo "Adding the Stardual start screen"
 mkdir -p "$WORK/app/res/drawable-nodpi"
 cp "$REPO_ROOT/src/main/res/drawable-nodpi/stardual_home.png" "$WORK/app/res/drawable-nodpi/"
