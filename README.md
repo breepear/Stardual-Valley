@@ -112,7 +112,7 @@ Tested on an AYN Thor (Android 13) with:
 | [SMAPI for Android](https://www.nexusmods.com/stardewvalley/mods/44436) | 4.3.2.5 |
 | Stardew Valley PC (Steam), in Cinderbox | 1.6.15 |
 | Cinderbox | 0.8.1 (SMAPI 4.5.2.5) |
-| Stardew Valley Dual Screen Mod | 2.1.0, from this repo's [releases](../../releases/latest) |
+| Stardew Valley Dual Screen Mod | 2.2.0, from this repo's [releases](../../releases/latest) |
 | Stardual Valley | latest [release](../../releases/latest) |
 
 ## Setup
