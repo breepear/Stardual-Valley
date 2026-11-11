@@ -96,6 +96,7 @@ internal sealed partial class Overview
             {
                 string[] key = pair.Key.Split('/');
                 if (key.Length < 2 || !int.TryParse(key[^1], out int index) || !cc.bundles.ContainsKey(index)) continue;
+                if (!StardewSecondScreen.Bundles.RoomOpen(cc, Game1.player, key[0])) continue;
                 bool[] done = cc.bundles[index];
                 string[] parts = pair.Value.Split('/');
                 if (parts.Length < 3) continue;
@@ -135,7 +136,9 @@ internal sealed partial class Overview
                 var f = pair.Value;
                 if ((int)f.Season != season || f.StartDay != day) continue;
                 if (pair.Key == "DesertFestival" && !player.mailReceived.Contains("ccVault")) continue;
-                AddFestival(player, todo, pair.Key, TokenParser.ParseText(f.DisplayName) ?? pair.Key, ahead);
+                string shown = TokenParser.ParseText(f.DisplayName);
+                if (string.IsNullOrWhiteSpace(shown)) shown = System.Text.RegularExpressions.Regex.Replace(pair.Key, "(?<=[a-z])(?=[A-Z])", " ");
+                AddFestival(player, todo, pair.Key, shown, ahead);
             }
         }
     }

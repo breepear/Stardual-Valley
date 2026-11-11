@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Shortcuts</title>
+<style>
+  :root {
+    --row: #f9da95;
+    --row-alt: #f3cf86;
+    --rule: #d6aa67;
+    --ink: #2f1c11;
+    --sub: #6b4d2e;
+    --chip: #e59436;
+    --track: #e6b466;
+    --press: #e8bf72;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: transparent; color: var(--ink); font-family: sans-serif; user-select: none; }
+  /* Pinned to the window: the page loads before the WebView has a size. */
+  body { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; overflow: hidden; }
+  img { image-rendering: pixelated; }
+
+  .search { flex: none; display: flex; align-items: center; gap: 8px; background: var(--row); border: 1px solid var(--rule);
+    padding: 6px 10px; margin-bottom: 4px; }
+  .search svg { flex: none; }
+  .search input { flex: 1; min-width: 0; border: none; background: transparent; font: inherit; font-size: 15px; color: var(--ink); outline: none; padding: 4px 0; }
+  .search input::placeholder { color: var(--sub); }
+  .clear { flex: none; font-size: 18px; color: var(--sub); padding: 0 4px; display: none; }
+  .search.typed .clear { display: block; }
+
+  .scroll { flex: 1; overflow-y: auto; min-height: 0; }
+  .scroll::-webkit-scrollbar { width: 5px; }
+  .scroll::-webkit-scrollbar-track { background: var(--track); }
+  .scroll::-webkit-scrollbar-thumb { background: #b06a2a; }
+
+  .group { font-size: 12px; font-weight: bold; color: var(--sub); padding: 6px 2px 4px; text-transform: uppercase; letter-spacing: .04em; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px; }
+  .button { background: var(--row); border: 1px solid var(--rule); padding: 8px; display: flex; align-items: center; gap: 9px; min-height: 58px; }
+  .button:active, .result:active { background: var(--press); }
+  .button.off { opacity: .5; }
+  .icon { width: 32px; height: 32px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .icon img { max-width: 32px; max-height: 32px; }
+  .icon img.portrait { width: 32px; height: 32px; border-radius: 2px; }
+  .text { flex: 1; min-width: 0; }
+  .title { font-size: 13.5px; font-weight: bold; line-height: 1.2; }
+  .detail { font-size: 10.5px; color: var(--sub); line-height: 1.25; margin-top: 2px; }
+
+  .results { background: var(--row); border: 1px solid var(--rule); }
+  .result { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-bottom: 1px solid var(--rule); min-height: 50px; }
+  .result:last-child { border-bottom: none; }
+  .verbs { flex: none; display: flex; gap: 4px; }
+  .verb { font-size: 11px; font-weight: bold; background: var(--chip); color: var(--ink); border: 1px solid #b06a2a; padding: 6px 10px; }
+  .verb:active { background: #c97b2a; }
+  .kind { flex: none; font-size: 9.5px; color: var(--sub); text-transform: uppercase; letter-spacing: .04em; }
+  .empty { padding: 18px 12px; text-align: center; font-size: 12px; color: var(--sub); line-height: 1.4; background: var(--row); border: 1px solid var(--rule); }
+</style>
+</head>
+<body>
+  <label class="search" id="search-box">
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="6.5" cy="6.5" r="5" fill="none" stroke="#6b4d2e" stroke-width="2"/><path d="M10.5 10.5 15 15" stroke="#6b4d2e" stroke-width="2"/></svg>
+    <input id="q" type="search" placeholder="Search shortcuts, your backpack, villagers, pages" autocomplete="off" spellcheck="false">
+    <span class="clear" id="clear">×</span>
+  </label>
+  <div class="scroll" id="scroll"><div class="empty">Load a save to use your shortcuts.</div></div>
+<script>
+  var state = null;
+  var GROUPS = ['Quick', 'Travel'];
+  var PAGES = [
+    ['OVERVIEW', 'Overview'], ['MAP', 'Map'], ['RELATIONSHIPS', 'Relationships'], ['GIFT_GUIDE', 'Gift Guide'],
+    ['FIELDS', 'Fields'], ['CRAFTING', 'Crafting'], ['JOURNAL', 'Journal'], ['MACHINES', 'Machines'],
+    ['BUNDLES', 'Bundles'], ['CALENDAR', 'Calendar'], ['SETTINGS', 'Settings']
+  ];
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function png(data, cls) { var i = new Image(); i.src = 'data:image/png;base64,' + data; if (cls) i.className = cls; return i; }
+  function icon(data, cls) { var box = el('div', 'icon'); if (data) box.appendChild(png(data, cls)); return box; }
+  function call(fn, arg) { try { if (window.Stardual && window.Stardual[fn]) window.Stardual[fn](arg); } catch (e) {} }
+  function run(action) { call('run', action); }
+
+  function button(a) {
+    var b = el('div', 'button' + (a.enabled === '1' ? '' : ' off'));
+    b.appendChild(icon(a.icon));
+    var t = el('div', 'text');
+    t.appendChild(el('div', 'title', a.title));
+    if (a.detail) t.appendChild(el('div', 'detail', a.detail));
+    b.appendChild(t);
+    if (a.enabled === '1') b.addEventListener('click', function () { run(a.id); });
+    return b;
+  }
+
+  function drawButtons(scroll) {
+    GROUPS.forEach(function (g) {
+      var list = (state.actions || []).filter(function (a) { return a.group === g; });
+      if (!list.length) return;
+      scroll.appendChild(el('div', 'group', g));
+      var grid = el('div', 'grid');
+      list.forEach(function (a) { grid.appendChild(button(a)); });
+      scroll.appendChild(grid);
+    });
+  }
+
+  function verb(label, fn) {
+    var v = el('span', 'verb', label);
+    v.addEventListener('click', function (ev) { ev.stopPropagation(); fn(); });
+    return v;
+  }
+
+  function result(iconData, cls, title, detail, kind, verbs, tap) {
+    var r = el('div', 'result');
+    r.appendChild(icon(iconData, cls));
+    var t = el('div', 'text');
+    t.appendChild(el('div', 'title', title));
+    if (detail) t.appendChild(el('div', 'detail', detail));
+    r.appendChild(t);
+    if (verbs.length) { var vs = el('div', 'verbs'); verbs.forEach(function (v) { vs.appendChild(v); }); r.appendChild(vs); }
+    else r.appendChild(el('span', 'kind', kind));
+    if (tap) r.addEventListener('click', tap);
+    return r;
+  }
+
+  function matches(text, words) {
+    text = (text || '').toLowerCase();
+    return words.every(function (w) { return text.indexOf(w) >= 0; });
+  }
+
+  function drawResults(scroll, query) {
+    var words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    var box = el('div', 'results');
+    var count = 0;
+    function add(r) { box.appendChild(r); count++; }
+
+    (state.actions || []).forEach(function (a) {
+      if (a.enabled !== '1' || !matches(a.title + ' ' + a.detail + ' ' + a.group, words)) return;
+      add(result(a.icon, '', a.title, a.detail, a.group, [], function () { run(a.id); }));
+    });
+    (state.items || []).forEach(function (it) {
+      if (!matches(it.name + ' ' + it.type, words)) return;
+      var verbs = [];
+      if (it.edible === '1') verbs.push(verb('Eat', function () { run('eat:' + it.slot); }));
+      if (it.usable === '1') verbs.push(verb('Use', function () { run('use:' + it.slot); }));
+      verbs.push(verb(it.held === '1' ? 'Holding' : 'Hold', function () { run('hold:' + it.slot); }));
+      var where = it.slot < 12 ? 'Toolbar slot ' + (Number(it.slot) + 1) : 'Backpack row ' + (Math.floor(it.slot / 12) + 1);
+      add(result(it.icon, '', it.name + (it.stack > 1 ? ' ×' + it.stack : ''), where + (it.type ? ' · ' + it.type : ''), 'Item', verbs));
+    });
+    (state.people || []).forEach(function (p) {
+      if (!matches(p.name, words)) return;
+      add(result(p.icon, 'portrait', p.name, 'Look them up on the top screen', 'Villager', [verb('Look up', function () { call('lookup', p.key); })]));
+    });
+    PAGES.forEach(function (p) {
+      if (!matches(p[1] + ' page', words)) return;
+      add(result('', '', p[1], 'Open the ' + p[1] + ' page', 'Page', [], function () { call('openPage', p[0]); }));
+    });
+
+    if (count) scroll.appendChild(box);
+    else scroll.appendChild(el('div', 'empty', 'Nothing matches "' + query + '".'));
+  }
+
+  function draw() {
+    var scroll = document.getElementById('scroll');
+    var top = scroll.scrollTop;
+    var query = document.getElementById('q').value.trim();
+    document.getElementById('search-box').className = 'search' + (query ? ' typed' : '');
+    scroll.innerHTML = '';
+    if (!state) { scroll.appendChild(el('div', 'empty', 'Load a save to use your shortcuts.')); return; }
+    if (query) drawResults(scroll, query); else drawButtons(scroll);
+    scroll.scrollTop = top;
+  }
+
+  document.getElementById('q').addEventListener('input', function () { document.getElementById('scroll').scrollTop = 0; draw(); });
+  document.getElementById('clear').addEventListener('click', function (ev) {
+    ev.preventDefault();
+    var q = document.getElementById('q');
+    q.value = '';
+    q.blur();
+    draw();
+  });
+
+  window.stardualRender = function (raw) {
+    try {
+      state = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      draw();
+    } catch (e) { console.log('shortcuts: ' + e); }
+  };
+</script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Pokémon</title>
+<style>
+  :root {
+    --row: #f9da95;
+    --rule: #d6aa67;
+    --ink: #2f1c11;
+    --sub: #6b4d2e;
+    --good: #3f6b1d;
+    --good-bg: #cfe39a;
+    --good-rule: #7fa443;
+    --warn: #a63a17;
+    --chip: #e59436;
+    --track: #e6b466;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: transparent; color: var(--ink); font-family: sans-serif; user-select: none; }
+  /* Pinned to the window: the page loads before the WebView has a size. */
+  body { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; overflow: hidden; }
+  img { image-rendering: pixelated; }
+
+  .strip { display: flex; gap: 4px; padding: 0 0 4px; flex: none; }
+  .stat { flex: 1; background: var(--row); border: 1px solid var(--rule); padding: 4px 8px; min-width: 0; }
+  .stat .label { font-size: 10px; color: var(--sub); }
+  .stat .value { font-size: 13px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat.done { background: var(--good-bg); border-color: var(--good-rule); }
+  .stat.done .value { color: var(--good); }
+  .stat.todo .value { color: var(--warn); }
+
+  .scroll { flex: 1; overflow-y: auto; min-height: 0; }
+  .scroll::-webkit-scrollbar { width: 5px; }
+  .scroll::-webkit-scrollbar-track { background: var(--track); }
+  .scroll::-webkit-scrollbar-thumb { background: #b06a2a; }
+
+  .section { font-size: 13px; font-weight: bold; padding: 6px 2px 4px; display: flex; justify-content: space-between; align-items: baseline; }
+  .section .count { font-size: 10.5px; color: var(--sub); font-weight: normal; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 4px; }
+  .list { background: var(--row); border: 1px solid var(--rule); }
+
+  .mon { background: var(--row); border: 1px solid var(--rule); padding: 6px 8px; display: flex; gap: 8px; align-items: center; }
+  .mon.trained { background: var(--good-bg); border-color: var(--good-rule); }
+  .pic { width: 40px; height: 40px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .pic img { max-width: 40px; max-height: 40px; }
+  .text { flex: 1; min-width: 0; }
+  .title { font-size: 13px; font-weight: bold; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .detail { font-size: 10.5px; color: var(--sub); line-height: 1.3; margin-top: 1px; }
+  .detail.warn { color: var(--warn); font-weight: bold; }
+  .detail.good { color: var(--good); font-weight: bold; }
+  .hearts { color: #c0392b; font-size: 10px; letter-spacing: 1px; }
+  .hearts .off { color: #b9a07a; }
+
+  .row { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-bottom: 1px solid var(--rule); min-height: 44px; }
+  .row:last-child { border-bottom: none; }
+  .row .pic { width: 32px; height: 32px; }
+  .row .pic img { max-width: 32px; max-height: 32px; }
+  .row.owned { background: var(--good-bg); }
+  .row.locked .pic img { filter: brightness(0) opacity(.35); }
+  .pill { flex: none; font-size: 10px; font-weight: bold; padding: 2px 6px; border: 1px solid; white-space: nowrap; }
+  .pill.have { background: #6a9a2a; color: #fff8e0; border-color: #3f6b1d; }
+  .pill.house { background: var(--row); color: var(--sub); border-color: var(--rule); }
+
+  .empty { padding: 14px 12px; font-size: 12px; color: var(--sub); line-height: 1.45; background: var(--row); border: 1px solid var(--rule); }
+  .empty b { color: var(--ink); }
+  .tabs { display: flex; gap: 4px; margin: 2px 0 4px; }
+  .tab { font-size: 11.5px; font-weight: bold; padding: 4px 10px; border: 1px solid var(--rule); color: var(--sub); }
+  .tab.on { background: var(--chip); border-color: #b06a2a; color: var(--ink); }
+</style>
+</head>
+<body>
+  <div class="strip" id="strip"></div>
+  <div class="scroll" id="scroll"><div class="empty">Load a save to see your Pokémon.</div></div>
+<script>
+  var state = null;
+  var dexFilter = 'all';
+  try { dexFilter = localStorage.getItem('pkDex') || 'all'; } catch (e) {}
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function pic(data, cls) {
+    var box = el('div', cls || 'pic');
+    if (data) { var i = new Image(); i.src = 'data:image/png;base64,' + data; box.appendChild(i); }
+    return box;
+  }
+  function stat(label, value, cls) {
+    var s = el('div', 'stat' + (cls ? ' ' + cls : ''));
+    s.appendChild(el('div', 'label', label));
+    s.appendChild(el('div', 'value', value));
+    return s;
+  }
+  function hearts(n) {
+    var h = el('span', 'hearts');
+    for (var i = 0; i < 5; i++) {
+      var c = el('span', i < n ? '' : 'off', '♥');
+      h.appendChild(c);
+    }
+    return h;
+  }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+  function minutesText(m) {
+    if (m <= 0) return 'ready';
+    var days = Math.floor(m / 1440), hours = Math.round((m % 1440) / 60);
+    if (days > 0) return 'hatches in ' + plural(days, 'day', 'days');
+    return 'hatches in ' + plural(Math.max(1, hours), 'hour', 'hours');
+  }
+
+  function drawStrip() {
+    var strip = document.getElementById('strip');
+    strip.innerHTML = '';
+    var owned = state.owned || [];
+    var left = owned.filter(function (m) { return m.trained !== '1'; }).length;
+    var collect = owned.filter(function (m) { return m.produce === '1'; }).length;
+    strip.appendChild(stat('Your Pokémon', owned.length ? plural(owned.length, 'Pokémon', 'Pokémon') : 'None yet'));
+    if (owned.length) strip.appendChild(stat('Training', left ? left + ' left to train' : 'All trained', left ? 'todo' : 'done'));
+    if (collect) strip.appendChild(stat('To collect', plural(collect, 'Pokémon has', 'Pokémon have') + ' something'));
+    var seen = (state.dex || []).filter(function (d) { return Number(d.have) > 0; }).length;
+    strip.appendChild(stat('Pokédex', seen + ' of ' + (state.dex || []).length));
+  }
+
+  function drawTeam(scroll) {
+    var owned = state.owned || [];
+    var head = el('div', 'section');
+    head.appendChild(el('span', '', 'Your Pokémon'));
+    if (owned.length) head.appendChild(el('span', 'count', plural(owned.length, 'Pokémon', 'Pokémon')));
+    scroll.appendChild(head);
+    if (!owned.length) {
+      var msg = el('div', 'empty');
+      var houses = state.houses || [];
+      var ready = houses.filter(function (h) { return !(Number(h.buildingDays) > 0); });
+      if (ready.length) {
+        msg.innerHTML = 'Your ' + ready.map(function (h) { return h.name; }).join(' and ') + ' is ready for guests. <b>Buy Pokémon at Marnie\'s Ranch</b>: they appear in her animal shop.';
+      } else if (houses.length) {
+        var h = houses[0], days = Number(h.buildingDays);
+        msg.innerHTML = 'Robin is building your ' + h.name + ' (ready in ' + plural(days, 'day', 'days') + '). Then <b>buy Pokémon at Marnie\'s Ranch</b>.';
+      } else {
+        msg.innerHTML = 'Pokémon need their own home first. <b>Build a Pokemon Coop or Pokemon Barn at Robin\'s</b> (Carpenter\'s Shop), then buy Pokémon at Marnie\'s Ranch.';
+      }
+      scroll.appendChild(msg);
+      return;
+    }
+    // Untrained first, so today's training is at the top.
+    owned = owned.slice().sort(function (a, b) { return (a.trained === '1') - (b.trained === '1'); });
+    var grid = el('div', 'grid');
+    owned.forEach(function (m) {
+      var card = el('div', 'mon' + (m.trained === '1' ? ' trained' : ''));
+      card.appendChild(pic(m.icon));
+      var t = el('div', 'text');
+      t.appendChild(el('div', 'title', m.name));
+      var line = el('div', 'detail');
+      line.appendChild(document.createTextNode(m.species + (m.baby === '1' ? ' (baby) · ' : ' · ')));
+      line.appendChild(hearts(Number(m.hearts) || 0));
+      t.appendChild(line);
+      t.appendChild(el('div', 'detail ' + (m.trained === '1' ? 'good' : 'warn'), m.trained === '1' ? 'Trained today' : 'Needs training'));
+      if (m.produce === '1') t.appendChild(el('div', 'detail', 'Has something for you · ' + m.home));
+      else t.appendChild(el('div', 'detail', m.home));
+      card.appendChild(t);
+      grid.appendChild(card);
+    });
+    scroll.appendChild(grid);
+  }
+
+  function drawHouses(scroll) {
+    var houses = state.houses || [];
+    if (!houses.length) return;
+    scroll.appendChild(el('div', 'section', 'Pokémon homes'));
+    var list = el('div', 'list');
+    houses.forEach(function (h) {
+      var r = el('div', 'row');
+      var t = el('div', 'text');
+      t.appendChild(el('div', 'title', h.name));
+      var days = Number(h.buildingDays) || 0;
+      if (days > 0) t.appendChild(el('div', 'detail warn', 'Robin is building it · ready in ' + plural(days, 'day', 'days')));
+      else t.appendChild(el('div', 'detail', h.animals + ' of ' + h.capacity + ' spots taken'));
+      (h.incubators || []).forEach(function (inc) {
+        t.appendChild(el('div', 'detail', 'Incubator: ' + (inc.egg ? inc.egg + ', ' + minutesText(Number(inc.minutes)) : 'empty')));
+      });
+      r.appendChild(t);
+      list.appendChild(r);
+    });
+    scroll.appendChild(list);
+  }
+
+  function drawDex(scroll) {
+    var dex = state.dex || [];
+    if (!dex.length) return;
+    var head = el('div', 'section');
+    head.appendChild(el('span', '', 'Pokédex'));
+    head.appendChild(el('span', 'count', 'Where to get each Pokémon'));
+    scroll.appendChild(head);
+    var tabs = el('div', 'tabs');
+    [['all', 'All'], ['buy', 'At Marnie\'s'], ['surprise', 'Surprises'], ['have', 'Have']].forEach(function (f) {
+      var b = el('div', 'tab' + (dexFilter === f[0] ? ' on' : ''), f[1]);
+      b.addEventListener('click', function () {
+        dexFilter = f[0];
+        try { localStorage.setItem('pkDex', dexFilter); } catch (e) {}
+        draw();
+      });
+      tabs.appendChild(b);
+    });
+    scroll.appendChild(tabs);
+    var list = el('div', 'list');
+    dex.filter(function (d) {
+      if (dexFilter === 'buy') return d.buy === '1';
+      if (dexFilter === 'surprise') return d.buy !== '1';
+      if (dexFilter === 'have') return Number(d.have) > 0;
+      return true;
+    }).forEach(function (d) {
+      var have = Number(d.have) > 0;
+      var r = el('div', 'row' + (have ? ' owned' : (d.buy === '1' ? '' : ' locked')));
+      r.appendChild(pic(d.icon));
+      var t = el('div', 'text');
+      t.appendChild(el('div', 'title', d.species));
+      t.appendChild(el('div', 'detail', d.how));
+      r.appendChild(t);
+      if (have) r.appendChild(el('span', 'pill have', d.have > 1 ? 'Have ' + d.have : 'Have'));
+      r.appendChild(el('span', 'pill house', d.house.replace('Pokemon ', '')));
+      list.appendChild(r);
+    });
+    if (!list.children.length) list.appendChild(el('div', 'row', 'None yet.'));
+    scroll.appendChild(list);
+  }
+
+  function draw() {
+    var scroll = document.getElementById('scroll');
+    var top = scroll.scrollTop;
+    scroll.innerHTML = '';
+    document.getElementById('strip').innerHTML = '';
+    if (!state) { scroll.appendChild(el('div', 'empty', 'Load a save to see your Pokémon.')); return; }
+    if (state.installed !== '1') {
+      var e = el('div', 'empty');
+      e.innerHTML = 'No Pokémon mod is installed. Install <b>Pokemon Ranch</b> (with Extra Animal Config) to raise Pokémon on your farm.';
+      scroll.appendChild(e);
+      return;
+    }
+    drawStrip();
+    drawTeam(scroll);
+    drawHouses(scroll);
+    drawDex(scroll);
+    scroll.scrollTop = top;
+  }
+
+  window.stardualRender = function (raw) {
+    try {
+      state = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      draw();
+    } catch (e) { console.log('pokemon: ' + e); }
+  };
+</script>
+</body>
+</html>

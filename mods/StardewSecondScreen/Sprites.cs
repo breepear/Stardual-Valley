@@ -52,6 +52,71 @@ internal sealed class Sprites
 		}
 	}
 
+	/// <summary>
+	/// Stardual: one of the game's menu-tab pictures without its tab frame. Pixels that are the
+	/// same in every tab of the row are the frame, so they're cleared; the rest is cropped.
+	/// </summary>
+	public byte[]? EncodeUnframed(Texture2D? sheet, Rectangle source, IReadOnlyList<Rectangle> row)
+	{
+		try
+		{
+			if (sheet == null || row.Count < 2) return null;
+			int w = source.Width, h = source.Height;
+			Color[] mine = new Color[w * h];
+			sheet.GetData(0, source, mine, 0, mine.Length);
+			var others = new List<Color[]>();
+			foreach (Rectangle r in row)
+			{
+				if (r == source || r.Width != w || r.Height != h) continue;
+				Color[] c = new Color[w * h];
+				sheet.GetData(0, r, c, 0, c.Length);
+				others.Add(c);
+			}
+			for (int i = 0; i < mine.Length; i++)
+			{
+				if (mine[i].A == 0 || others.TrueForAll(c => c[i] == mine[i])) mine[i] = Color.Transparent;
+			}
+			return EncodeCropped(sheet.GraphicsDevice, mine, w, h);
+		}
+		catch
+		{
+			return null;
+		}
+	}
+
+	/// <summary>A PNG of the pixels, cropped to the edges of what's visible.</summary>
+	public byte[]? EncodeCropped(GraphicsDevice device, Color[] pixels, int w, int h)
+	{
+		try
+		{
+			int minX = w, minY = h, maxX = -1, maxY = -1;
+			for (int y = 0; y < h; y++)
+			{
+				for (int x = 0; x < w; x++)
+				{
+					if (pixels[y * w + x].A <= 8) continue;
+					if (x < minX) minX = x; if (y < minY) minY = y;
+					if (x > maxX) maxX = x; if (y > maxY) maxY = y;
+				}
+			}
+			if (maxX < 0) return null;
+			int cw = maxX - minX + 1, ch = maxY - minY + 1;
+			Color[] crop = new Color[cw * ch];
+			for (int y = 0; y < ch; y++)
+				for (int x = 0; x < cw; x++)
+					crop[y * cw + x] = pixels[(y + minY) * w + x + minX];
+			using Texture2D texture2D = new Texture2D(device, cw, ch);
+			texture2D.SetData(crop);
+			using MemoryStream memoryStream = new MemoryStream();
+			texture2D.SaveAsPng(memoryStream, cw, ch);
+			return memoryStream.ToArray();
+		}
+		catch
+		{
+			return null;
+		}
+	}
+
 	public byte[]? EncodeId(string qualifiedId)
 	{
 		try

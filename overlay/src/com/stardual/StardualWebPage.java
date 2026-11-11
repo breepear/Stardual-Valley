@@ -44,6 +44,9 @@ final class StardualWebPage {
     private final List<WeakReference<WebView>> views = new ArrayList<>();
     private volatile String latest;
 
+    /** The app, for pages that ask about the device (the Overview's battery box). */
+    static volatile Context appContext;
+
     StardualWebPage(String tag, String type, String asset, Object bridge) {
         this.tag = tag;
         this.type = type;
@@ -91,10 +94,14 @@ final class StardualWebPage {
         @SuppressLint({"SetJavaScriptEnabled", "JavascriptInterface"})
         @Override
         public Object invoke(Object context) {
+            appContext = ((Context) context).getApplicationContext();
             WebView view = new WebView((Context) context);
             view.setBackgroundColor(Color.TRANSPARENT);
             view.setOverScrollMode(View.OVER_SCROLL_NEVER);
             view.setVerticalScrollBarEnabled(false);
+            // So a text box on the page (the Shortcuts search) can take the keyboard.
+            view.setFocusable(true);
+            view.setFocusableInTouchMode(true);
             view.getSettings().setJavaScriptEnabled(true);
             view.getSettings().setDomStorageEnabled(true);
             view.getSettings().setAllowFileAccess(true);

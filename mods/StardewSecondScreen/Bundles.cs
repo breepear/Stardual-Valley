@@ -48,6 +48,25 @@ internal sealed class Bundles
         _sources = null;
     }
 
+    /// <summary>
+    /// Whether a Community Center room's bundles are open to you, the way the game decides:
+    /// the Wizard has to have let you read the Junimos' notes, and each room's note only
+    /// appears once enough earlier bundles are done (the Crafts Room first, the Vault later).
+    /// </summary>
+    public static bool RoomOpen(CommunityCenter cc, Farmer player, string room)
+    {
+        if (!player.mailReceived.Contains("canReadJunimoText")) return false;
+        try
+        {
+            int area = CommunityCenter.getAreaNumberFromName(room);
+            return area < 0 || cc.shouldNoteAppearInArea(area);
+        }
+        catch
+        {
+            return true;
+        }
+    }
+
     public string Build()
     {
         _sources ??= LoadSources();
@@ -57,6 +76,7 @@ internal sealed class Bundles
         {
             foreach (var pair in Game1.netWorldState.Value.BundleData)
             {
+                if (!RoomOpen(cc, player, pair.Key.Split('/')[0])) continue;
                 try
                 {
                     string? json = Bundle(cc, player, pair.Key, pair.Value);
@@ -75,6 +95,7 @@ internal sealed class Bundles
             Json.Str("season", season),
             Json.Num("dayOfMonth", Game1.dayOfMonth),
             Json.Flag("joja", player.mailReceived.Contains("JojaMember")),
+            Json.Flag("canRead", player.mailReceived.Contains("canReadJunimoText")),
             Json.Flag("ccDone", player.mailReceived.Contains("ccIsComplete") || cc_complete()),
             Json.Str("starSilver", Region("ui:star_silver", new Rectangle(338, 400, 8, 8))),
             Json.Str("starGold", Region("ui:star_gold", new Rectangle(346, 400, 8, 8))),

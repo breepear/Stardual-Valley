@@ -88,6 +88,14 @@ public sealed class ModEntry : Mod
 
 	private Bundles? _bundles;
 
+	private Shortcuts? _shortcuts;
+
+	private Pokemon? _pokemon;
+
+	private AnimalsPage? _animalsPage;
+
+	private int _lastHay = -1;
+
 	private readonly CommandQueue _commands = new CommandQueue();
 
 	private bool _hudHidden;
@@ -194,14 +202,25 @@ public sealed class ModEntry : Mod
 			Attempt("collections", SendCollections);
 			Attempt("gifts", SendGifts);
 			Attempt("trees", SendTrees);
+			Attempt("pokemon", SendPokemon);
+		Attempt("animals page", SendAnimalsPage);
 			_farmRefreshPending = true;
 		};
-		helper.Events.Player.Warped += (object? _, WarpedEventArgs _) =>
+		helper.Events.Player.Warped += (object? _, WarpedEventArgs e) =>
 		{
+			// Stardual: "when you're bored" ideas drop off as soon as you've done them.
+			if (e.IsLocalPlayer && e.NewLocation != null) _overview?.Arrived(e.NewLocation);
+			Attempt("overview", SendOverview);
 			Attempt("day", SendDay);
 			Attempt("villagers", SendVillagers);
 		};
 		helper.Events.GameLoop.ReturnedToTitle += OnReturnedToTitle;
+		// Stardual: refresh the Overview when a menu or conversation closes (after talking to
+		// someone, giving a gift, cooking or shipping), so finished ideas go away right away.
+		helper.Events.Display.MenuChanged += (object? _, MenuChangedEventArgs e) =>
+		{
+			if (e.NewMenu == null && Context.IsWorldReady) Attempt("overview", SendOverview);
+		};
 		helper.Events.Display.Rendered += OnRendered;
 	}
 
@@ -247,6 +266,53 @@ public sealed class ModEntry : Mod
 		Attempt("quests", SendQuests);
 		Attempt("orders", SendOrders);
 		Attempt("overview", SendOverview);
+		Attempt("shortcuts", SendShortcuts);
+		Attempt("schedules", SendSchedules);
+		Attempt("pokemon", SendPokemon);
+		Attempt("animals page", SendAnimalsPage);
+	}
+
+	/// <summary>Stardual: the Animals page (farm animals that aren't Pokemon, coops and barns, hay, your pet).</summary>
+	private void SendAnimalsPage()
+	{
+		if (!Live)
+		{
+			return;
+		}
+		_animalsPage ??= new AnimalsPage(_sprites, Monitor);
+		_bridge.Broadcast("sdv_animals_page", _animalsPage.Build());
+	}
+
+	/// <summary>Stardual: the Pokemon page (Pokemon Ranch's Pokemon, their buildings and where to get more).</summary>
+	private void SendPokemon()
+	{
+		if (!Live)
+		{
+			return;
+		}
+		_pokemon ??= new Pokemon(_sprites, Monitor);
+		_bridge.Broadcast("sdv_pokemon", _pokemon.Build());
+	}
+
+	/// <summary>Stardual: today's schedule for every villager you've met (the Gifts page).</summary>
+	private void SendSchedules()
+	{
+		if (!Live)
+		{
+			return;
+		}
+		_bridge.Broadcast("sdv_schedules", Schedules.Build());
+	}
+
+	/// <summary>Stardual: the Shortcuts page (big buttons, plus the backpack and villagers to search).</summary>
+	private void SendShortcuts()
+	{
+		if (!Live)
+		{
+			return;
+		}
+		_shortcuts ??= new Shortcuts(_sprites, Monitor);
+		_bridge.Broadcast("sdv_shortcuts", _shortcuts.Build());
 	}
 
 	/// <summary>Stardual: the Overview page (to do today, and ideas for when you're bored).</summary>
@@ -284,17 +350,26 @@ public sealed class ModEntry : Mod
 				SendDay();
 			}
 		}
+		// Stardual: hay goes into silos without touching the backpack, so watch it too.
+		int hay = Overview.Hay().hay;
+		if (hay != _lastHay)
+		{
+			_lastHay = hay;
+			Attempt("overview", SendOverview);
+		}
 		int num = InventoryHash();
 		if (num != _lastInventoryHash)
 		{
 			_lastInventoryHash = num;
 			SendInventory();
 			Attempt("overview", SendOverview);
+		Attempt("shortcuts", SendShortcuts);
 		}
 	}
 
 	private void OnTick(object? sender, UpdateTickedEventArgs e)
 	{
+		Shortcuts.Tick();
 		if (!Context.IsWorldReady)
 		{
 			return;
@@ -353,6 +428,17 @@ public sealed class ModEntry : Mod
 			return;
 		}
 		// Stardual: tapping a villager on the Relationships page opens Lookup Anything's panel for them.
+		if (type == "stardual_do")
+		{
+			_shortcuts ??= new Shortcuts(_sprites, Monitor);
+			if (_shortcuts.Run(command.Key, LookupVillager))
+			{
+				Attempt("inventory", SendInventory);
+				Attempt("overview", SendOverview);
+			}
+			Attempt("shortcuts", SendShortcuts);
+			return;
+		}
 		if (type == "lookup_npc")
 		{
 			LookupVillager(command.Key);
@@ -603,6 +689,36 @@ public sealed class ModEntry : Mod
 
 	/// <summary>Stardual: one line on who this villager is with, for the Relationships page.
 	/// "Married to you", "Dating you", "Married to Pierre", "Single" and so on.</summary>
+	/// <summary>
+	/// Stardual: how far the next heart is, for the People page ("4 chats or 1 loved gift").
+	/// A heart is 250 friendship points; talking gives 20 a day, a loved gift 80.
+	/// </summary>
+	private static string NextHeartLine(NPC npc, Friendship friendship)
+	{
+		try
+		{
+			if (friendship == null) return "";
+			int points = friendship.Points;
+			int cap = friendship.IsMarried() ? 14 : 10;
+			bool bouquetNeeded = npc.datable.Value && !friendship.IsDating() && !friendship.IsMarried() && !friendship.IsEngaged();
+			if (bouquetNeeded) cap = 8;
+			if (points >= cap * 250 - 1)
+			{
+				return bouquetNeeded ? "Give a bouquet for more hearts" : "Max hearts";
+			}
+			int need = 250 - points % 250;
+			int chats = (need + 19) / 20;
+			int loved = (need + 79) / 80;
+			string c = chats == 1 ? "1 chat" : chats + " chats";
+			string g = loved == 1 ? "1 loved gift" : loved + " loved gifts";
+			return c + " or " + g;
+		}
+		catch
+		{
+			return "";
+		}
+	}
+
 	private static string RelationshipLine(NPC npc, Friendship friendship)
 	{
 		try
@@ -681,6 +797,10 @@ public sealed class ModEntry : Mod
 		Attempt("mines", SendMines);
 		Attempt("collections", SendCollections);
 		Attempt("overview", SendOverview);
+		Attempt("shortcuts", SendShortcuts);
+		Attempt("schedules", SendSchedules);
+		Attempt("pokemon", SendPokemon);
+		Attempt("animals page", SendAnimalsPage);
 	}
 
 	private void Attempt(string what, Action send)
@@ -1302,7 +1422,7 @@ public sealed class ModEntry : Mod
 				valueTuple = VillagerMapPixel(characterFromName);
 			}
 			(int, int, string) tuple = valueTuple;
-			list.Add(Json.Object(Json.Str("name", ((Character)characterFromName).displayName ?? item), Json.Str("npc", ((Character)characterFromName).Name ?? item), Json.Str("location", tuple.Item3), Json.Num("mapX", tuple.Item1), Json.Num("mapY", tuple.Item2), Json.Num("hearts", val.Points / 250), Json.Num("maxHearts", val.IsMarried() ? 14 : 10), Json.Str("birthdaySeason", Capitalise(characterFromName.Birthday_Season ?? "")), Json.Num("birthdayDay", characterFromName.Birthday_Day), Json.Num("birthdayIn", num2), Json.Num("giftsThisWeek", val.GiftsThisWeek), Json.Flag("talkedToday", val.TalkedToToday), Json.Str("relationship", RelationshipLine(characterFromName, val))));
+			list.Add(Json.Object(Json.Str("name", ((Character)characterFromName).displayName ?? item), Json.Str("npc", ((Character)characterFromName).Name ?? item), Json.Str("location", tuple.Item3), Json.Num("mapX", tuple.Item1), Json.Num("mapY", tuple.Item2), Json.Num("hearts", val.Points / 250), Json.Num("maxHearts", val.IsMarried() ? 14 : 10), Json.Str("birthdaySeason", Capitalise(characterFromName.Birthday_Season ?? "")), Json.Num("birthdayDay", characterFromName.Birthday_Day), Json.Num("birthdayIn", num2), Json.Num("giftsThisWeek", val.GiftsThisWeek), Json.Flag("talkedToday", val.TalkedToToday), Json.Str("relationship", RelationshipLine(characterFromName, val)), Json.Str("nextHeart", NextHeartLine(characterFromName, val))));
 		}
 		_bridge.Broadcast("sdv_villagers", Json.Message("sdv_villagers", Json.Array("villagers", list)));
 	}
@@ -1428,6 +1548,99 @@ public sealed class ModEntry : Mod
 		// Stardual: a stardrop for the Overview tab.
 		ParsedItemData stardrop = ItemRegistry.GetDataOrErrorItem("(O)434");
 		Piece("ui:tab_overview", stardrop.GetTexture(), stardrop.GetSourceRect());
+		// Stardual: a warp totem for the Shortcuts tab.
+		ParsedItemData totem = ItemRegistry.GetDataOrErrorItem("(O)688");
+		Piece("ui:tab_shortcuts", totem.GetTexture(), totem.GetSourceRect());
+		// Stardual: tab icons without the menu-tab frame, one per page ("ui:page_<PAGE>").
+		// The Overview's is your own farmhouse.
+		void ItemPiece(string page, params string[] ids)
+		{
+			foreach (string id in ids)
+			{
+				ParsedItemData? data = ItemRegistry.GetData(id);
+				if (data == null) continue;
+				Piece("ui:page_" + page, data.GetTexture(), data.GetSourceRect());
+				return;
+			}
+		}
+		try
+		{
+			Building? house = Game1.getFarm()?.GetMainFarmHouse();
+			Texture2D? houseTexture = house?.texture?.Value;
+			if (house != null && houseTexture != null)
+				Piece("ui:page_OVERVIEW", houseTexture, house.getSourceRectForMenu() ?? house.getSourceRect());
+			else
+				ItemPiece("OVERVIEW", "(BC)Mini-Obelisk", "(O)434");
+		}
+		catch
+		{
+			ItemPiece("OVERVIEW", "(O)434");
+		}
+		ItemPiece("SHORTCUTS", "(O)688");
+		ItemPiece("MAP", "(BC)37");
+		// People is the farmer's face, like the game's Skills tab: see SendPlayerHead, which
+		// sends it once the face is drawn (a bouquet until then).
+		if (_peopleIcon != null) SendPeopleIcon();
+		else ItemPiece("RELATIONSHIPS", "(O)458");
+		ItemPiece("GIFT_GUIDE", "(O)221");
+		// The pictures above the People page's checkboxes: a speech bubble for "talked today"
+		// and a wrapped gift box (blue with a red ribbon, from LooseSprites/Giftbox) for the
+		// week's two gifts.
+		byte[]? talk = _sprites.EncodeRegion(Game1.mouseCursors, new Rectangle(66, 4, 14, 12));
+		if (talk != null) _bridge.Send(Json.Message("sdv_sprite", Json.Str("id", "ui:slot_talk"), Json.Num("inset", 0), Json.Str("png", Convert.ToBase64String(talk))));
+		try
+		{
+			Texture2D giftbox = Game1.content.Load<Texture2D>("LooseSprites\\Giftbox");
+			byte[]? gift = _sprites.EncodeRegion(giftbox, new Rectangle(1, 80, 14, 16));
+			if (gift != null) _bridge.Send(Json.Message("sdv_sprite", Json.Str("id", "ui:slot_gift"), Json.Num("inset", 0), Json.Str("png", Convert.ToBase64String(gift))));
+		}
+		catch
+		{
+		}
+		ItemPiece("FIELDS", "(O)24");
+		ItemPiece("CRAFTING", "(BC)208");
+		ItemPiece("JOURNAL", "(O)102");
+		ItemPiece("MACHINES", "(BC)12");
+		ItemPiece("BUNDLES", "(O)373");
+		// Animals: the White Cow's picture from Marnie's shop.
+		try
+		{
+			if (Game1.farmAnimalData.TryGetValue("White Cow", out var cow) && !string.IsNullOrEmpty(cow.ShopTexture))
+			{
+				Texture2D shopCow = Game1.content.Load<Texture2D>(cow.ShopTexture);
+				Piece("ui:page_ANIMALS", shopCow, cow.ShopSourceRect.IsEmpty ? shopCow.Bounds : cow.ShopSourceRect);
+			}
+			else
+			{
+				ItemPiece("ANIMALS", "(O)186");
+			}
+		}
+		catch
+		{
+			ItemPiece("ANIMALS", "(O)186");
+		}
+		// Pokemon: Pikachu's picture from Marnie's shop (Pokemon Ranch), else an egg.
+		try
+		{
+			if (Game1.farmAnimalData.TryGetValue("fpikachu", out var pika) && !string.IsNullOrEmpty(pika.ShopTexture))
+			{
+				Texture2D shop = Game1.content.Load<Texture2D>(pika.ShopTexture);
+				Piece("ui:page_POKEMON", shop, pika.ShopSourceRect.IsEmpty ? shop.Bounds : pika.ShopSourceRect);
+			}
+			else
+			{
+				ItemPiece("POKEMON", "(O)176");
+			}
+		}
+		catch
+		{
+			ItemPiece("POKEMON", "(O)176");
+		}
+		ItemPiece("CALENDAR", "(O)421");
+		ItemPiece("PROGRESS", "(O)434");
+		// Settings is the controller from the game's Options menu tab, cut out of the tab frame
+		// (10 x 10 pixels, taken from LooseSprites/Cursors at 96,368).
+		_bridge.Send(Json.Message("sdv_sprite", Json.Str("id", "ui:page_SETTINGS"), Json.Num("inset", 0), Json.Num("insetX", 0), Json.Num("insetY", 0), Json.Str("png", SettingsIcon)));
 		if (!SendGround())
 		{
 			missing.Add("ui:ground");
@@ -1858,6 +2071,15 @@ public sealed class ModEntry : Mod
 		}
 	}
 
+	private byte[]? _peopleIcon;
+
+	private const string SettingsIcon = "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAWklEQVR4nGNgQAO2trb/0cWwAqIVElQMksSGMRRlZ2f/7500GQWDxOCKYYrQFYPYDB3/EYrRrYIpdDpiBlZ0l8EaoRCXif8/MKCaCOLAMMxkdDEMH2MLBRAfAOD9gbFjEnQRAAAAAElFTkSuQmCC";
+
+	private void SendPeopleIcon()
+	{
+		_bridge.Send(Json.Message("sdv_sprite", Json.Str("id", "ui:page_RELATIONSHIPS"), Json.Num("inset", 0), Json.Num("insetX", 0), Json.Num("insetY", 0), Json.Str("png", Convert.ToBase64String(_peopleIcon!))));
+	}
+
 	private bool SendPlayerHead()
 	{
 		if (_bridge == null || Game1.player == null)
@@ -1913,6 +2135,9 @@ public sealed class ModEntry : Mod
 			texture2D.SaveAsPng(memoryStream, 64, 64);
 			byte[] array4 = memoryStream.ToArray();
 			_bridge.Send(Json.Message("sdv_sprite", Json.Str("id", "ui:player"), Json.Num("inset", 0), Json.Str("png", Convert.ToBase64String(array4))));
+			// Stardual: the People tab's icon is the same face, cropped to its edges.
+			_peopleIcon = _sprites.EncodeCropped(graphicsDevice, array2, 64, 64);
+			if (_peopleIcon != null) SendPeopleIcon();
 			Monitor.Log($"Farmer portrait sent, {num} visible pixels, {array4.Length} bytes.", LogLevel.Info);
 			return true;
 		}
@@ -2039,6 +2264,11 @@ public sealed class ModEntry : Mod
 				hashSet.Add(item.QualifiedItemId);
 			}
 		}
+		// Stardual: loved gifts in a chest or the fridge count too. The app is told which ones
+		// are in the backpack and which are stored (and where) by "sdv_gift_places".
+		Dictionary<string, string> stored = StoredItems();
+		var bagOnly = new HashSet<string>(hashSet);
+		foreach (string id in stored.Keys) hashSet.Add(id);
 		List<string> list = new List<string>();
 		foreach (string item2 in ((IEnumerable<string>)(object)((NetDictionary<string, Friendship, NetRef<Friendship>, SerializableDictionary<string, Friendship>, NetStringDictionary<Friendship, NetRef<Friendship>>>)(object)Game1.player.friendshipData).Keys).ToList())
 		{
@@ -2089,6 +2319,42 @@ public sealed class ModEntry : Mod
 			}
 		}
 		_bridge.Broadcast("sdv_gifts", Json.Message("sdv_gifts", Json.Array("villagers", list)));
+		var bagIds = bagOnly.Select(id => "\"" + Json.Escape(id) + "\"").ToList();
+		var storedList = stored.Where(p => !bagOnly.Contains(p.Key)).Select(p => Json.Object(Json.Str("id", p.Key), Json.Str("where", p.Value))).ToList();
+		_bridge.Broadcast("sdv_gift_places", Json.Message("sdv_gift_places", "\"backpack\":[" + string.Join(",", bagIds) + "]", Json.Array("stored", storedList)));
+	}
+
+	/// <summary>Stardual: every item in a chest or fridge, with where it is ("Chest in the Shed").</summary>
+	private static Dictionary<string, string> StoredItems()
+	{
+		var stored = new Dictionary<string, string>();
+		void Add(Item? item, string where)
+		{
+			if (item != null && !stored.ContainsKey(item.QualifiedItemId)) stored[item.QualifiedItemId] = where;
+		}
+		try
+		{
+			Utility.ForEachLocation(location =>
+			{
+				string place = LocationName(location);
+				foreach (StardewValley.Object obj in location.objects.Values)
+				{
+					if (obj is StardewValley.Objects.Chest chest && chest.playerChest.Value)
+					{
+						foreach (Item? item in chest.Items) Add(item, "Chest in " + place);
+					}
+				}
+				if (location is StardewValley.Locations.FarmHouse house && house.fridge.Value != null)
+				{
+					foreach (Item? item in house.fridge.Value.Items) Add(item, "Fridge");
+				}
+				return true;
+			});
+		}
+		catch
+		{
+		}
+		return stored;
 	}
 
 	private void SendCrafting()
@@ -2741,20 +3007,10 @@ public sealed class ModEntry : Mod
 		}
 	}
 
+	// Stardual: inside a building, the building's name ("Pokemon Coop"); otherwise a readable name.
 	private static string LocationName(GameLocation location)
 	{
-		try
-		{
-			string displayName = location.DisplayName;
-			if (!string.IsNullOrWhiteSpace(displayName))
-			{
-				return displayName;
-			}
-		}
-		catch
-		{
-		}
-		return location.Name ?? "";
+		return Names.Place(location);
 	}
 
 	private static string RoomName(string key)

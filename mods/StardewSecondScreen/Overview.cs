@@ -59,6 +59,7 @@ internal sealed partial class Overview
     public string Build()
     {
         Farmer player = Game1.player;
+        _cookedAtStart ??= player.recipesCooked.Pairs.ToDictionary(p => p.Key, p => p.Value);
         var todo = new List<Row>();
         var bored = new List<Row>();
         void Try(string what, Action step)
@@ -75,7 +76,18 @@ internal sealed partial class Overview
         Try("plant", () => PlantDeadlines(player, todo));
         Try("festivals", () => Festivals(player, todo));
         Try("town", () => Town(player, todo));
+        Try("closed shops", () => ClosedShops(player, todo));
+        Try("bundles nearly done", () => BundlesNearlyDone(player, todo));
+        Try("animal care", () => AnimalCare(player, todo));
+        Try("bedtime", () => Bedtime(player, todo));
+        Try("energy", () => LowEnergy(player, todo));
+        Try("weekly gifts", () => WeeklyGifts(player, todo));
+        Try("berries", () => Berries(player, todo));
+        Try("tv", () => QueenOfSauce(player, todo));
+        Try("special orders board", () => SpecialOrdersBoard(player, todo));
 
+        Try("luck", () => LuckyDay(player, bored));
+        Try("legendary fish", () => LegendaryFish(player, bored));
         Try("fish", () => Fish(player, bored));
         Try("gifts", () => GiftIdeas(player, bored));
         Try("villagers", () => Talk(player, bored));
@@ -84,6 +96,9 @@ internal sealed partial class Overview
         Try("cooking", () => Cooking(player, bored));
         Try("shipping", () => Shipping(player, bored));
         Try("mines", () => Mines(player, bored));
+        Try("collections", () => Collections(player, bored));
+        var tomorrowNotes = new List<string>();
+        Try("tomorrow", () => tomorrowNotes = TomorrowNotes(player));
 
         string luck = "Neutral", luckTone = "";
         double daily = player.DailyLuck;
@@ -99,6 +114,7 @@ internal sealed partial class Overview
             Json.Num("year", Game1.year),
             Json.Str("tomorrow", Tomorrow()),
             Json.Str("tomorrowIcon", TomorrowIcon()),
+            Json.Array("tomorrowNotes", tomorrowNotes.Select(n => "\"" + Json.Escape(n) + "\"")),
             Json.Str("checkOff", Cursor("check_off", 227, 425, 9, 9)),
             Json.Str("checkOn", Cursor("check_on", 236, 425, 9, 9)),
             Json.Str("luck", luck),
@@ -168,9 +184,8 @@ internal sealed partial class Overview
         string name = location.DisplayName;
         if (location is Farm) return "Farm";
         if (location.Name == "FarmHouse") return "House";
-        if (!string.IsNullOrEmpty(name) && name != location.Name) return name;
-        // No display name: "IslandWest" becomes "Island West".
-        return System.Text.RegularExpressions.Regex.Replace(location.Name, "(?<=[a-z])(?=[A-Z])", " ");
+        // Inside a building, the building's name; "IslandWest" becomes "Island West".
+        return StardewSecondScreen.Names.Place(location);
     }
 
     private static string Article(string noun) =>
@@ -286,7 +301,34 @@ internal sealed partial class Overview
     private string? _lastDrySummary;
 
     /// <summary>Forget yesterday's state at the start of each day.</summary>
-    public void NewDay() => _hadCropsToday = false;
+    public void NewDay()
+    {
+        _hadCropsToday = false;
+        _cookedAtStart = null;
+        _minedToday = false;
+        _hayAlertToday = false;
+    }
+
+    // What you've done today, so "when you're bored" ideas go away once you've done them.
+    private Dictionary<string, int>? _cookedAtStart;
+    private bool _minedToday;
+
+    /// <summary>Called when you arrive somewhere. Going into the mines clears the lucky-day idea.</summary>
+    public void Arrived(GameLocation location)
+    {
+        if (location is StardewValley.Locations.MineShaft || location.Name is "Mine" or "SkullCave") _minedToday = true;
+    }
+
+    private bool CookedToday(Farmer player, string? id = null)
+    {
+        if (_cookedAtStart == null) return false;
+        foreach (var pair in player.recipesCooked.Pairs)
+        {
+            if (id != null && pair.Key != id) continue;
+            if (!_cookedAtStart.TryGetValue(pair.Key, out int before) || pair.Value > before) return true;
+        }
+        return false;
+    }
 
     private void Machines(List<Row> todo)
     {
@@ -310,7 +352,7 @@ internal sealed partial class Overview
             todo.Add(new Row
             {
                 Id = "machine:" + pair.Key, Icon = ItemIcon(pair.Value.id),
-                Title = n == 1 ? $"{pair.Key} is ready" : $"{n} {pair.Key}s are ready",
+                Title = n == 1 ? $"{pair.Key} is ready" : $"{n} {StardewSecondScreen.Names.Plural(pair.Key)} are ready",
                 Detail = Places(pair.Value.places), Page = "MACHINES"
             });
         }
@@ -319,7 +361,21 @@ internal sealed partial class Overview
     private void Animals(Farmer player, List<Row> todo)
     {
         Farm farm = Game1.getFarm();
-        List<FarmAnimal> animals = farm.getAllFarmAnimals().ToList();
+        List<FarmAnimal> everyone = farm.getAllFarmAnimals().ToList();
+        // Pokemon (Pokemon Ranch) get their own row: you train them instead of petting them.
+        List<FarmAnimal> pokemon = everyone.Where(Pokemon.IsPokemon).ToList();
+        List<FarmAnimal> animals = everyone.Where(a => !Pokemon.IsPokemon(a)).ToList();
+        if (pokemon.Count > 0)
+        {
+            List<FarmAnimal> untrained = pokemon.Where(a => !a.wasPet.Value).ToList();
+            todo.Add(new Row
+            {
+                Id = "train-pokemon", Icon = ItemIcon("(O)bees.pkr_rarecandy"),
+                Title = untrained.Count > 0 ? $"Train {untrained.Count} Pokémon" : "Pokémon trained",
+                Detail = untrained.Count > 0 ? Names(untrained.Select(a => a.displayName).ToList()) : "Your team is ready",
+                Done = untrained.Count == 0, Page = "POKEMON"
+            });
+        }
         if (animals.Count > 0)
         {
             List<FarmAnimal> unpetted = animals.Where(a => !a.wasPet.Value).ToList();
@@ -328,12 +384,12 @@ internal sealed partial class Overview
                 Id = "pet-animals", Icon = Cursor("heart_big", 211, 428, 7, 6),
                 Title = unpetted.Count > 0 ? $"Pet {Plural(unpetted.Count, "animal", "animals")}" : "Animals petted",
                 Detail = unpetted.Count > 0 ? Names(unpetted.Select(a => a.displayName).ToList()) : "Everyone's happy",
-                Done = unpetted.Count == 0
+                Done = unpetted.Count == 0, Page = "ANIMALS"
             });
-            int produce = animals.Count(a => a.currentProduce.Value != null && a.GetHarvestType() == StardewValley.GameData.FarmAnimals.FarmAnimalHarvestType.HarvestWithTool);
+            int produce = everyone.Count(a => a.currentProduce.Value != null && a.GetHarvestType() == StardewValley.GameData.FarmAnimals.FarmAnimalHarvestType.HarvestWithTool);
             if (produce > 0)
             {
-                todo.Add(new Row { Id = "produce", Icon = ItemIcon("(T)MilkPail"), Title = $"Milk or shear {Plural(produce, "animal", "animals")}", Detail = "They have something for you" });
+                todo.Add(new Row { Id = "produce", Icon = ItemIcon("(T)MilkPail"), Title = $"Milk or shear {Plural(produce, "animal", "animals")}", Detail = "They have something for you", Page = "ANIMALS" });
             }
         }
         if (player.hasPet())
@@ -349,16 +405,21 @@ internal sealed partial class Overview
 
     private void Quests(Farmer player, List<Row> todo)
     {
+        // Everything in the journal, with what it asks you to do next.
         foreach (Quest quest in player.questLog)
         {
-            if (quest.completed.Value || !quest.IsTimedQuest()) continue;
-            int left = quest.GetDaysLeft();
-            if (left <= 0) continue;
+            if (quest.completed.Value || quest.destroy.Value) continue;
+            bool timed = quest.IsTimedQuest();
+            int left = timed ? quest.GetDaysLeft() : -1;
+            if (timed && left <= 0) continue;
+            string objective = quest.currentObjective ?? "";
+            string due = !timed ? "" : left == 1 ? "Last day" : $"{left} days left";
             todo.Add(new Row
             {
                 Id = "quest:" + quest.id.Value, Icon = Cursor("quest", 403, 496, 5, 14),
-                Title = quest.GetName(), Detail = left == 1 ? "Last day" : $"{left} days left",
-                Tone = left <= 2 ? "warn" : "", Page = "JOURNAL"
+                Title = quest.GetName(),
+                Detail = string.Join(" · ", new[] { objective, due }.Where(x => x != "")),
+                Tone = timed && left <= 2 ? "warn" : "", Page = "JOURNAL"
             });
         }
         foreach (SpecialOrder order in player.team.specialOrders)
@@ -383,17 +444,19 @@ internal sealed partial class Overview
         if (player.toolBeingUpgraded.Value != null && player.daysLeftForToolUpgrade.Value <= 0)
         {
             Item tool = player.toolBeingUpgraded.Value;
-            todo.Add(new Row { Id = "tool", Icon = ItemIcon(tool.QualifiedItemId), Title = $"Pick up your {tool.DisplayName}", Detail = "Clint has finished it" });
+            string hours = ShopHours(1600, "Clint");
+            todo.Add(new Row { Id = "tool", Icon = ItemIcon(tool.QualifiedItemId), Title = $"Pick up your {tool.DisplayName}", Detail = hours == "" ? "Clint has finished it" : "Clint has finished it. " + hours, Tone = hours == "" ? "" : "warn" });
         }
-        if (Game1.getLocationFromName("Forest") is Forest forest && (forest.travelingMerchantDay || forest.ShouldTravelingMerchantVisitToday()))
+        if (Game1.getLocationFromName("Forest") is Forest forest && (forest.travelingMerchantDay || forest.ShouldTravelingMerchantVisitToday()) && Game1.timeOfDay < 2000)
         {
             List<string> forBundles = new();
             try { forBundles = CartBundleItems(); } catch { }
             todo.Add(new Row
             {
                 Id = "cart", Icon = Cursor("coin", 280, 412, 20, 16), Title = "Visit the Traveling Cart",
-                Detail = "Cindersap Forest, 6 am to 8 pm" + (forBundles.Count > 0 ? ". Has " + Names(forBundles) + " for your bundles" : ""),
-                Tone = forBundles.Count > 0 ? "warn" : ""
+                Detail = (ShopHours(2000, "The cart") is string closing && closing != "" ? "Cindersap Forest. " + closing : "Cindersap Forest, 6 am to 8 pm")
+                    + (forBundles.Count > 0 ? ". Has " + Names(forBundles) + " for your bundles" : ""),
+                Tone = forBundles.Count > 0 || Game1.timeOfDay >= 1800 ? "warn" : ""
             });
         }
     }
@@ -461,7 +524,7 @@ internal sealed partial class Overview
             if (f.Points >= 2500) continue;
             Item? loved = player.Items.FirstOrDefault(i => i != null && i.canBeGivenAsGift() && npc.getGiftTasteForThisItem(i) == NPC.gift_taste_love);
             if (loved == null) continue;
-            picks.Add((new Row { Id = "gift:" + npc.Name, Icon = NpcIcon(npc), Title = $"Give {npc.displayName} {loved.DisplayName}", Detail = "A gift they love, from your backpack", Tag = "Friends", Npc = npc.Name }, f.Points));
+            picks.Add((new Row { Id = "gift:" + npc.Name, Icon = NpcIcon(npc), Title = $"Give {npc.displayName} {loved.DisplayName}", Detail = "A gift they love, from your backpack", Tag = "Friends", Npc = npc.Name, Page = "GIFT_GUIDE" }, f.Points));
         }
         foreach (var pick in picks.OrderBy(p => p.points).Take(2)) bored.Add(pick.row);
     }
@@ -497,6 +560,7 @@ internal sealed partial class Overview
         {
             string[] key = pair.Key.Split('/');
             if (key.Length < 2 || !int.TryParse(key[^1], out int index) || !cc.bundles.ContainsKey(index)) continue;
+            if (!StardewSecondScreen.Bundles.RoomOpen(cc, Game1.player, key[0])) continue;
             bool[] done = cc.bundles[index];
             string[] parts = pair.Value.Split('/');
             if (parts.Length < 3) continue;
@@ -522,6 +586,8 @@ internal sealed partial class Overview
 
     private void Cooking(Farmer player, List<Row> bored)
     {
+        // Once you've cooked something today, the idea has been done.
+        if (CookedToday(player)) return;
         IList<Item>? fridge = null;
         if (Utility.getHomeOfFarmer(player) is FarmHouse home && home.fridge.Value != null) fridge = home.fridge.Value.Items;
         foreach (string name in player.cookingRecipes.Keys)

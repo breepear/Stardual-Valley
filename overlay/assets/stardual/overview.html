@@ -28,10 +28,14 @@
 
   .strip { display: flex; gap: 4px; padding: 0 0 4px; }
   .stat { flex: 1; background: var(--row); border: 1px solid var(--rule); padding: 4px 8px; min-width: 0; }
+  .stat.wide { flex: 1.5; }
+  .stat.narrow { flex: 0.8; }
   .stat .label { font-size: 10px; color: var(--sub); }
   .stat .value { font-size: 13px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     display: flex; align-items: center; gap: 5px; }
   .stat .value img { height: 12px; }
+  .stat .note { font-size: 10px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+  .stat .note:empty { display: none; }
   .good { color: var(--good); }
   .bad { color: var(--bad); }
 
@@ -52,6 +56,8 @@
   .row.done .title { text-decoration: line-through; color: var(--sub); }
   .row.done .icon { opacity: .55; }
   .check { width: 16px; height: 16px; flex: none; }
+  .tick { flex: none; padding: 8px 4px; margin: -8px -4px; display: flex; align-items: center; }
+  .go { flex: none; font-size: 14px; color: var(--sub); padding-left: 2px; }
   .icon { width: 28px; height: 28px; flex: none; display: flex; align-items: center; justify-content: center; }
   .icon img { max-width: 28px; max-height: 28px; }
   .icon img.portrait { width: 28px; height: 28px; border-radius: 2px; }
@@ -67,9 +73,10 @@
 </head>
 <body>
   <div class="strip">
-    <div class="stat"><div class="label">Today</div><div class="value" id="date">Waiting for the game</div></div>
-    <div class="stat"><div class="label">Tomorrow</div><div class="value" id="tomorrow">–</div></div>
+    <div class="stat wide"><div class="label">Today</div><div class="value" id="date">Waiting for the game</div></div>
+    <div class="stat"><div class="label">Tomorrow</div><div class="value" id="tomorrow">–</div><div class="note" id="tomorrow-note"></div></div>
     <div class="stat"><div class="label">Luck</div><div class="value" id="luck">–</div></div>
+    <div class="stat narrow"><div class="label">Thor battery</div><div class="value" id="battery">–</div><div class="note" id="battery-note"></div></div>
   </div>
   <div class="columns">
     <section class="column">
@@ -135,22 +142,38 @@
       var finished = isDone(row);
       if (finished) done++;
       var r = el('div', 'row' + (finished ? ' done' : '') + (row.tone === 'warn' && !finished ? ' warn' : ''));
-      r.appendChild(checkbox(finished));
+      var tick = el('div', 'tick');
+      tick.appendChild(checkbox(finished));
+      tick.addEventListener('click', function (ev) { ev.stopPropagation(); toggle(row); });
+      r.appendChild(tick);
       r.appendChild(iconFor(row));
       var t = el('div', 'text');
       t.appendChild(el('div', 'title', row.title));
       if (row.detail) t.appendChild(el('div', 'detail', row.detail));
       r.appendChild(t);
+      if (row.page) r.appendChild(el('span', 'go', '›'));
+      // Tapping a row opens its page (or the villager's Lookup panel); the box ticks it off.
+      // A villager's row that opens Gifts (a birthday) opens it on that villager.
       r.addEventListener('click', function () {
-        if (row.done === '1') { if (row.npc) lookup(row.npc); return; } // the game already counts it as done
-        if (ticked[row.id]) delete ticked[row.id]; else ticked[row.id] = 1;
-        saveTicked();
-        drawTodo();
+        if (row.page) {
+          if (row.page === 'GIFT_GUIDE' && row.npc) showVillager(row.npc);
+          openPage(row.page);
+          return;
+        }
+        if (row.npc) { lookup(row.npc); return; }
+        toggle(row);
       });
       list.appendChild(r);
     });
     if (rows.length === 0) list.appendChild(el('div', 'empty', 'Nothing to do today. Enjoy the valley.'));
     document.getElementById('todo-count').textContent = rows.length ? done + ' of ' + rows.length + ' done' : '';
+  }
+
+  function toggle(row) {
+    if (row.done === '1') return; // the game already counts it as done
+    if (ticked[row.id]) delete ticked[row.id]; else ticked[row.id] = 1;
+    saveTicked();
+    drawTodo();
   }
 
   function drawBored() {
@@ -165,7 +188,11 @@
       if (row.detail) t.appendChild(el('div', 'detail', row.detail));
       r.appendChild(t);
       if (row.tag) r.appendChild(el('span', 'tag', row.tag));
-      if (row.npc) r.addEventListener('click', function () { lookup(row.npc); });
+      if (row.page) r.addEventListener('click', function () {
+        if (row.page === 'GIFT_GUIDE' && row.npc) showVillager(row.npc);
+        openPage(row.page);
+      });
+      else if (row.npc) r.addEventListener('click', function () { lookup(row.npc); });
       list.appendChild(r);
     });
     if (rows.length === 0) list.appendChild(el('div', 'empty', 'No ideas right now. Check back after your next errand.'));
@@ -178,11 +205,28 @@
     tomorrow.innerHTML = '';
     if (state.tomorrowIcon) tomorrow.appendChild(png(state.tomorrowIcon));
     tomorrow.appendChild(el('span', '', state.tomorrow || '–'));
+    document.getElementById('tomorrow-note').textContent = (state.tomorrowNotes || []).join(' · ');
     var luck = document.getElementById('luck');
     luck.textContent = state.luck || '–';
     luck.className = 'value' + (state.luckTone ? ' ' + state.luckTone : '');
   }
 
+  // The Thor's battery, read from the device every 30 seconds (not from the game).
+  function drawBattery() {
+    var raw = '';
+    try { if (window.Stardual && window.Stardual.battery) raw = window.Stardual.battery(); } catch (e) {}
+    var value = document.getElementById('battery'), note = document.getElementById('battery-note');
+    if (!raw) { value.textContent = '–'; value.className = 'value'; note.textContent = ''; return; }
+    var parts = raw.split('|'), pct = Number(parts[0]), charging = parts[1] === '1';
+    value.textContent = pct + '%';
+    value.className = 'value' + (charging ? ' good' : pct <= 20 ? ' bad' : '');
+    note.textContent = charging ? (pct >= 100 ? 'Full' : 'Charging') : (pct <= 20 ? 'Plug in soon' : '');
+  }
+  drawBattery();
+  setInterval(drawBattery, 30000);
+
+  function openPage(page) { try { if (window.Stardual && window.Stardual.openPage) window.Stardual.openPage(page); } catch (e) {} }
+  function showVillager(npc) { try { if (window.Stardual && window.Stardual.showVillager) window.Stardual.showVillager(npc); } catch (e) {} }
   function lookup(npc) { try { if (window.Stardual) window.Stardual.lookup(npc); } catch (e) {} }
 
   window.stardualRender = function (raw) {

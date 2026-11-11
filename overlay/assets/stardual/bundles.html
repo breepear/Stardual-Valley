@@ -211,6 +211,7 @@
 
     if (state.joja === '1' || state.ccDone === '1' || bundles.length === 0) {
       scroll.appendChild(el('div', 'empty', state.joja === '1' ? 'You went with Joja, so there are no bundles to fill.'
+        : state.canRead === '0' ? 'Bundles open up once the Wizard helps you read the Junimos\' notes in the Community Center.'
         : 'Every bundle is done. The Junimos thank you.'));
       return;
     }

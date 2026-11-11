@@ -1,2 +1,7 @@
 package androidx.compose.runtime;
-public interface Composer {}
+
+public interface Composer {
+    void startReplaceGroup(int key);
+
+    void endReplaceGroup();
+}
