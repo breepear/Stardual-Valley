@@ -1,7 +1,7 @@
 {
   "Name": "Stardew Valley Dual Screen Mod",
   "Author": "Profmags (adapted for Stardual Valley by breepear)",
-  "Version": "2.2.0",
+  "Version": "2.3.0",
   "Description": "Feeds the Stardual Valley lower-screen app: your day, an overview of things to do, map, relationships, farm, journal, bundles, calendar and settings. Works with Stardew Valley on Android (SMAPI Launcher) and on PC (Cinderbox).",
   "UniqueID": "Profmags.StardewValleyDualScreenMod",
   "EntryDll": "StardewDualScreen.dll",

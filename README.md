@@ -47,7 +47,8 @@ Then follow [Setup](#setup).
 On top of the upstream app and mod:
 
 - **Overview page** (the first page). A dashboard of your day:
-  - **Today, tomorrow and luck** across the top, with tomorrow's weather.
+  - **Today, tomorrow, luck and the Thor's battery** across the top, with
+    tomorrow's weather.
   - **To do:** birthdays (with a gift you own that they love or like),
     crops to water and harvest, machines that are ready, animals to pet, milk or
     shear, the pet bowl, timed quests and special orders, mail, a finished tool
@@ -56,11 +57,18 @@ On top of the upstream app and mod:
     festivals up to a week ahead with their prep (Strawberry Seed money, a
     Flower Dance partner, something for the Luau soup, grange display items, a
     fishing rod...). Tap a row to tick it off; ticks are kept for the day.
-    Things the game knows you've done tick themselves.
+    Things the game knows you've done tick themselves. Journal quests show up
+    too, Pokémon get a "Train X Pokémon" row, and a row with a › opens its page
+    (a birthday opens Gifts on that villager).
   - **When you're bored:** fish you haven't caught that are biting now, gift
     ideas, villagers you haven't talked to, museum and bundle items you're
     carrying, something to cook, new items to ship and your next mines goal.
-    Tap a villager to open their Lookup Anything panel on the top screen.
+    Tap a villager to open their Lookup Anything panel on the top screen. Ideas
+    drop off once you've done them.
+- **Shortcuts page:** big buttons for things that take several presses on a
+  controller (eat your best food, the Help Wanted and Special Orders boards,
+  mail, TV channels, pause time, run or walk, warp totems), and a search box
+  that finds shortcuts, backpack items, villagers and pages.
 - **Bundles page:** the bundles you can work on this season first, with the
   items already in your backpack in green (and how many you have of stacks you
   only partly have). Everything that can't be found until a later season sits
@@ -68,17 +76,27 @@ On top of the upstream app and mod:
   switch hides everything you aren't carrying.
 - **Backpack page removed.** The Overview replaces it, and the game's own
   toolbar covers the rest.
-- **Relationships page:** hearts in two rows, each villager's status ("Single",
-  "Married to Pierre", "Dating you") under their birthday, no header or footer,
-  cleaner gift and talk checkboxes. Tap a villager to open their Lookup
-  Anything panel on the top screen.
-- **Gift Guide fits more villagers:** about five at once instead of two.
+- **People page** (was Relationships): hearts in two rows, each villager's
+  status ("Single", "Married to Pierre", "Dating you") under their birthday,
+  how many chats or loved gifts to the next heart, gift and chat icons over the
+  checkboxes, and sorting by Name, Hearts or Single. Tap a villager to open
+  their Lookup Anything panel on the top screen.
+- **Gifts page** (was Gift Guide): fits about five villagers at once, and
+  tapping one shows where they are now and their stops for the day. Loved gifts
+  in your backpack, chests or fridge are tagged BACKPACK, CHEST or FRIDGE.
+- **Pokémon page** (with the Pokemon Ranch mod): your Pokémon and who's been
+  trained today, your Pokémon homes and incubators, and a Pokédex of where to
+  get each one.
+- **Animals page:** your farm animals (Pokémon have their own page), who still
+  needs petting, who has milk, wool or eggs for you, coops and barns, and your
+  pet.
 - **Map:** the villager row runs the full width with names under bigger
   portraits; the farm summary and date row are gone.
 - **Crafting and Fields:** the bottom strips are gone so the lists fill the
   screen.
-- **Tab order:** Overview, Map, Relationships, Gift Guide, Fields, Crafting,
-  Journal, Machines, Bundles, Calendar, Settings.
+- **Tabs:** Overview, Shortcuts, Map, People, Gifts, Pokémon, Animals, Fields,
+  Crafting, Journal, Machines, Bundles, Calendar, Settings, in a shorter tab
+  bar with game-style icons. Settings can hide any page except itself.
 - **Start screen:** the Stardual Valley title art while you wait for the game,
   with a hint, then "Connected! Load a save in Stardew Valley to begin." It
   replaces the upstream multi-game list, so the app only shows Stardew.
@@ -112,7 +130,7 @@ Tested on an AYN Thor (Android 13) with:
 | [SMAPI for Android](https://www.nexusmods.com/stardewvalley/mods/44436) | 4.3.2.5 |
 | Stardew Valley PC (Steam), in Cinderbox | 1.6.15 |
 | Cinderbox | 0.8.1 (SMAPI 4.5.2.5) |
-| Stardew Valley Dual Screen Mod | 2.2.0, from this repo's [releases](../../releases/latest) |
+| Stardew Valley Dual Screen Mod | 2.3.0, from this repo's [releases](../../releases/latest) |
 | Stardual Valley | latest [release](../../releases/latest) |
 
 ## Setup
@@ -235,18 +253,19 @@ published here. Instead, `tools/repack-apk.sh` downloads Joe's upstream v2.0
 release APK as an untouched base and applies everything Stardual Valley changes:
 
 - **`tools/smali_patches.py`** edits the upstream app's unpacked code: the new
-  Overview and Bundles pages, the removed Backpack page, the Relationships,
-  Gift Guide, Map, Crafting and Fields layouts, the tab order and the bundles
-  fix. Each patch
+  Overview, Shortcuts, Bundles, Pokémon and Animals pages, the removed
+  Backpack page, the People, Gifts, Map, Crafting and Fields layouts, the tabs
+  and the bundles fix. Each patch
   stops the build if the code it expects has moved, so a new upstream release
   can't be patched in the wrong place.
 - **`overlay/src`** holds Stardual Valley's own Java classes (the start screen,
-  the Overview and Bundles pages, relationship lines and the Lookup Anything
+  the Overview, Shortcuts, Bundles, Pokémon and Animals pages, the Gifts
+  schedules, People sorting and relationship lines, and the Lookup Anything
   taps). They're
   compiled against stand-in declarations of the upstream classes they call
   (`overlay/stubs`, not packaged) and added to the APK as an extra dex file.
-- **`overlay/assets`** holds the Overview and Bundles pages' layouts
-  (`stardual/overview.html`, `stardual/bundles.html`).
+- **`overlay/assets`** holds the web pages' layouts (`stardual/overview.html`,
+  `shortcuts.html`, `bundles.html`, `pokemon.html`, `animals.html`).
 - The app name, icon and start-screen art come from `src/main/res`.
 
 ```bash
