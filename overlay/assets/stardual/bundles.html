@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>Bundles</title>
+<style>
+  :root {
+    --row: #f9da95;
+    --row-alt: #f3cf86;
+    --rule: #d6aa67;
+    --ink: #2f1c11;
+    --sub: #6b4d2e;
+    --good: #3f6b1d;
+    --good-bg: #cfe39a;
+    --good-rule: #7fa443;
+    --part: #8a5a12;
+    --part-bg: #f6c46a;
+    --warn: #a63a17;
+    --chip: #e59436;
+    --track: #e6b466;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: transparent; color: var(--ink);
+    font-family: sans-serif; user-select: none; }
+  /* Pinned to the window: the page loads before the WebView has a size. */
+  body { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; overflow: hidden; }
+  img { image-rendering: pixelated; }
+
+  .strip { display: flex; gap: 4px; padding: 0 0 4px; flex: none; }
+  .stat { flex: 1; background: var(--row); border: 1px solid var(--rule); padding: 4px 8px; min-width: 0; }
+  .stat .label { font-size: 10px; color: var(--sub); }
+  .stat .value { font-size: 13px; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stat.ready { background: var(--good-bg); border-color: var(--good-rule); }
+  .stat.ready .value { color: var(--good); }
+  .stat.toggle { flex: none; display: flex; align-items: center; gap: 6px; padding: 4px 10px; }
+  .stat.toggle.on { background: var(--good-bg); border-color: var(--good-rule); }
+  .box { width: 14px; height: 14px; border: 2px solid var(--ink); background: var(--row); flex: none; position: relative; }
+  .on .box::after { content: ""; position: absolute; left: 3px; top: 0; width: 4px; height: 8px;
+    border: solid var(--ink); border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  .stat.toggle .value { font-size: 12px; }
+
+  .scroll { flex: 1; overflow-y: auto; min-height: 0; }
+  .scroll::-webkit-scrollbar { width: 5px; }
+  .scroll::-webkit-scrollbar-track { background: var(--track); }
+  .scroll::-webkit-scrollbar-thumb { background: #b06a2a; }
+
+  .section { font-size: 13px; font-weight: bold; padding: 6px 2px 4px; display: flex; justify-content: space-between; align-items: baseline; }
+  .section .count { font-size: 10.5px; color: var(--sub); font-weight: normal; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px; align-items: start; }
+
+  .card { background: var(--row); border: 1px solid var(--rule); }
+  .card.has { border-color: var(--good-rule); }
+  .head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; padding: 5px 8px 4px; border-bottom: 1px solid var(--rule); }
+  .head .name { font-size: 13px; font-weight: bold; min-width: 0; }
+  .head .room { font-size: 10px; color: var(--sub); }
+  .head .progress { font-size: 10.5px; color: var(--sub); white-space: nowrap; }
+  .bar { height: 4px; background: var(--track); }
+  .bar div { height: 100%; background: #6a9a2a; }
+
+  .item { display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-bottom: 1px solid var(--rule); min-height: 40px; }
+  .item:last-child { border-bottom: none; }
+  .item.carried { background: var(--good-bg); }
+  .item.later { opacity: .8; }
+  .icon { width: 28px; height: 28px; flex: none; position: relative; display: flex; align-items: center; justify-content: center; }
+  .icon img.item-pic { max-width: 28px; max-height: 28px; }
+  .icon img.star { position: absolute; left: -2px; bottom: -2px; width: 12px; height: 12px; }
+  .icon .coin { width: 22px; height: 22px; border-radius: 50%; background: #f2c037; border: 2px solid #b07a12; }
+  .text { flex: 1; min-width: 0; }
+  .title { font-size: 12.5px; font-weight: bold; line-height: 1.2; }
+  .detail { font-size: 10.5px; color: var(--sub); line-height: 1.25; margin-top: 1px; }
+  .detail.ending { color: var(--warn); font-weight: bold; }
+  .pill { flex: none; font-size: 10px; font-weight: bold; padding: 2px 6px; border: 1px solid; white-space: nowrap; }
+  .pill.have { background: #6a9a2a; color: #fff8e0; border-color: #3f6b1d; }
+  .pill.part { background: var(--part-bg); color: var(--part); border-color: #b07a12; }
+  .pill.season { background: var(--chip); color: var(--ink); border-color: #b06a2a; }
+  .from { font-size: 10px; color: var(--sub); }
+
+  .accordion { margin-top: 6px; background: var(--row); border: 1px solid var(--rule); }
+  .accordion > .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; font-size: 13px; font-weight: bold; }
+  .accordion .chev { display: inline-block; transition: transform .15s; margin-right: 6px; }
+  .accordion.open .chev { transform: rotate(90deg); }
+  .accordion .count { font-size: 10.5px; color: var(--sub); font-weight: normal; }
+  .accordion .body { display: none; border-top: 1px solid var(--rule); }
+  .accordion.open .body { display: block; }
+  .season-head { font-size: 11.5px; font-weight: bold; padding: 6px 8px 3px; background: var(--row-alt); border-bottom: 1px solid var(--rule); }
+
+  .empty { padding: 18px 12px; text-align: center; font-size: 12px; color: var(--sub); line-height: 1.4; background: var(--row); border: 1px solid var(--rule); }
+</style>
+</head>
+<body>
+  <div class="strip">
+    <div class="stat"><div class="label">Season</div><div class="value" id="season">Waiting for the game</div></div>
+    <div class="stat" id="ready-box"><div class="label">In your backpack</div><div class="value" id="ready">–</div></div>
+    <div class="stat"><div class="label">Bundles left</div><div class="value" id="left">–</div></div>
+    <div class="stat toggle" id="only"><div class="box"></div><div class="value">Backpack only</div></div>
+  </div>
+  <div class="scroll" id="scroll">
+    <div class="empty">Load a save to see your bundles.</div>
+  </div>
+<script>
+  var SEASONS = ['spring', 'summer', 'fall', 'winter'];
+  var state = null;
+  var prefs = { upcoming: false, only: false };
+  try { prefs = Object.assign(prefs, JSON.parse(localStorage.getItem('stardual-bundles') || '{}')); } catch (e) {}
+  function savePrefs() { try { localStorage.setItem('stardual-bundles', JSON.stringify(prefs)); } catch (e) {} }
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function png(data, cls) {
+    var i = new Image();
+    i.src = 'data:image/png;base64,' + data;
+    if (cls) i.className = cls;
+    return i;
+  }
+  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+  function seasonsOf(item) { return item.seasons ? item.seasons.split(' ') : []; }
+  function availableNow(item) { var s = seasonsOf(item); return s.length === 0 || s.indexOf(state.season) >= 0; }
+  /** The next season (counting from now) the item can be found in. */
+  function nextSeason(item) {
+    var s = seasonsOf(item), now = SEASONS.indexOf(state.season);
+    for (var k = 1; k <= 4; k++) { var n = SEASONS[(now + k) % 4]; if (s.indexOf(n) >= 0) return n; }
+    return null;
+  }
+  /** Found now but not next season, in the last week of the season. */
+  function endingSoon(item) {
+    var s = seasonsOf(item);
+    if (s.length === 0 || s.length === 4 || state.dayOfMonth < 22) return false;
+    var next = SEASONS[(SEASONS.indexOf(state.season) + 1) % 4];
+    return s.indexOf(state.season) >= 0 && s.indexOf(next) < 0;
+  }
+  function seasonList(item) {
+    var s = seasonsOf(item);
+    return s.length === 0 || s.length === 4 ? '' : s.map(cap).join(', ');
+  }
+  function carried(item) { return item.carried === '1'; }
+
+  function star(quality) {
+    var data = quality >= 4 ? state.starIridium : quality === 2 ? state.starGold : quality === 1 ? state.starSilver : '';
+    return data ? png(data, 'star') : null;
+  }
+  function qualityName(q) { return q >= 4 ? 'Iridium quality' : q === 2 ? 'Gold quality' : q === 1 ? 'Silver quality' : ''; }
+
+  function itemRow(item, opts) {
+    var r = el('div', 'item' + (carried(item) ? ' carried' : '') + (opts.later ? ' later' : ''));
+    var icon = el('div', 'icon');
+    if (item.id === 'gold') icon.appendChild(el('div', 'coin'));
+    else if (item.icon) icon.appendChild(png(item.icon, 'item-pic'));
+    var s = star(item.quality); if (s) icon.appendChild(s);
+    r.appendChild(icon);
+
+    var t = el('div', 'text');
+    t.appendChild(el('div', 'title', item.name + (item.count > 1 && item.id !== 'gold' ? ' ×' + item.count : '')));
+    var bits = [];
+    if (opts.bundle) bits.push(opts.bundle);
+    var q = qualityName(item.quality); if (q) bits.push(q);
+    if (item.kind) bits.push(item.kind + (item.hint ? ': ' + item.hint : ''));
+    else if (item.hint) bits.push(item.hint);
+    var when = seasonList(item); if (when && !opts.later) bits.push(when);
+    var ending = !opts.later && !carried(item) && endingSoon(item);
+    if (ending) bits.unshift('Ends with ' + cap(state.season));
+    if (bits.length) t.appendChild(el('div', 'detail' + (ending ? ' ending' : ''), bits.join(' · ')));
+    r.appendChild(t);
+
+    if (carried(item)) r.appendChild(el('span', 'pill have', item.id === 'gold' ? 'You have it' : '✓ In backpack'));
+    else if (item.inBag > 0 && item.id !== 'gold') r.appendChild(el('span', 'pill part', item.inBag + ' of ' + item.count + ' in backpack'));
+    return r;
+  }
+
+  function sortItems(items) {
+    return items.slice().sort(function (a, b) {
+      return (carried(b) ? 2 : b.inBag > 0 ? 1 : 0) - (carried(a) ? 2 : a.inBag > 0 ? 1 : 0);
+    });
+  }
+
+  function bundleCard(bundle, items) {
+    var c = el('div', 'card' + (items.some(carried) ? ' has' : ''));
+    var h = el('div', 'head');
+    var n = el('div', '');
+    n.appendChild(el('div', 'name', bundle.name));
+    n.appendChild(el('div', 'room', bundle.room));
+    h.appendChild(n);
+    h.appendChild(el('div', 'progress', bundle.have + ' of ' + bundle.required + ' done'));
+    c.appendChild(h);
+    var bar = el('div', 'bar'), fill = el('div', '');
+    fill.style.width = Math.round(100 * bundle.have / Math.max(1, bundle.required)) + '%';
+    bar.appendChild(fill); c.appendChild(bar);
+    sortItems(items).forEach(function (item) { c.appendChild(itemRow(item, {})); });
+    var later = bundle.items.length - items.length;
+    if (later > 0 && !prefs.only) c.appendChild(el('div', 'item from', '+ ' + later + ' more later in the year, under Upcoming'));
+    return c;
+  }
+
+  function draw() {
+    var scroll = document.getElementById('scroll');
+    var top = scroll.scrollTop;
+    scroll.innerHTML = '';
+    var bundles = state.bundles || [];
+
+    var readyCount = 0;
+    bundles.forEach(function (b) { b.items.forEach(function (i) { if (carried(i)) readyCount++; }); });
+    document.getElementById('season').textContent = cap(state.season) + ' ' + state.dayOfMonth;
+    document.getElementById('ready').textContent = readyCount === 0 ? 'Nothing yet' : readyCount + (readyCount === 1 ? ' item ready' : ' items ready');
+    document.getElementById('ready-box').className = 'stat' + (readyCount ? ' ready' : '');
+    document.getElementById('left').textContent = bundles.length;
+    document.getElementById('only').className = 'stat toggle' + (prefs.only ? ' on' : '');
+
+    if (state.joja === '1' || state.ccDone === '1' || bundles.length === 0) {
+      scroll.appendChild(el('div', 'empty', state.joja === '1' ? 'You went with Joja, so there are no bundles to fill.'
+        : 'Every bundle is done. The Junimos thank you.'));
+      return;
+    }
+
+    // This season: bundles with something you can get now (or anytime).
+    var now = [], upcoming = [];
+    bundles.forEach(function (b) {
+      var items = b.items.filter(availableNow);
+      if (prefs.only) items = items.filter(function (i) { return carried(i) || i.inBag > 0; });
+      if (items.length) now.push({ bundle: b, items: items });
+      b.items.forEach(function (i) { if (!availableNow(i)) upcoming.push({ bundle: b, item: i }); });
+    });
+    now.sort(function (a, b) {
+      var ca = a.items.filter(carried).length, cb = b.items.filter(carried).length;
+      return cb - ca;
+    });
+
+    var sec = el('div', 'section', 'You can get these in ' + cap(state.season));
+    var itemCount = now.reduce(function (n, x) { return n + x.items.length; }, 0);
+    sec.appendChild(el('span', 'count', itemCount + (itemCount === 1 ? ' item' : ' items') + ' in ' + now.length + (now.length === 1 ? ' bundle' : ' bundles')));
+    scroll.appendChild(sec);
+    if (now.length) {
+      var grid = el('div', 'grid');
+      now.forEach(function (x) { grid.appendChild(bundleCard(x.bundle, x.items)); });
+      scroll.appendChild(grid);
+    } else {
+      scroll.appendChild(el('div', 'empty', prefs.only ? 'None of this season\'s bundle items are in your backpack.' : 'Nothing left for this season. Check Upcoming below.'));
+    }
+
+    // Upcoming: everything else, by the next season it can be found in.
+    if (upcoming.length && !prefs.only) {
+      var acc = el('div', 'accordion' + (prefs.upcoming ? ' open' : ''));
+      var row = el('div', 'toggle-row');
+      var label = el('span', '');
+      label.appendChild(el('span', 'chev', '▶'));
+      label.appendChild(document.createTextNode('Upcoming'));
+      row.appendChild(label);
+      row.appendChild(el('span', 'count', upcoming.length + (upcoming.length === 1 ? ' item' : ' items') + ' in later seasons'));
+      row.addEventListener('click', function () { prefs.upcoming = !prefs.upcoming; savePrefs(); draw(); });
+      acc.appendChild(row);
+      var body = el('div', 'body');
+      var start = SEASONS.indexOf(state.season);
+      for (var k = 1; k <= 3; k++) {
+        var season = SEASONS[(start + k) % 4];
+        var group = upcoming.filter(function (x) { return nextSeason(x.item) === season; });
+        if (!group.length) continue;
+        body.appendChild(el('div', 'season-head', cap(season)));
+        group.forEach(function (x) { body.appendChild(itemRow(x.item, { later: true, bundle: x.bundle.name })); });
+      }
+      acc.appendChild(body);
+      scroll.appendChild(acc);
+    }
+    scroll.scrollTop = top;
+  }
+
+  document.getElementById('only').addEventListener('click', function () {
+    prefs.only = !prefs.only; savePrefs(); if (state) draw();
+  });
+
+  window.stardualRender = function (raw) {
+    try {
+      state = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      draw();
+    } catch (e) { console.log('bundles: ' + e); }
+  };
+</script>
+</body>
+</html>

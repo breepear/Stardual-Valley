@@ -51,12 +51,21 @@ On top of the upstream app and mod:
   - **To do:** birthdays (with a gift you own that they love or like),
     crops to water and harvest, machines that are ready, animals to pet, milk or
     shear, the pet bowl, timed quests and special orders, mail, a finished tool
-    upgrade, the Traveling Cart and festivals. Tap a row to tick it off; ticks
-    are kept for the day. Things the game knows you've done tick themselves.
+    upgrade, the Traveling Cart (naming anything it sells that your bundles
+    need), the last day to plant seeds you own before the season ends, and
+    festivals up to a week ahead with their prep (Strawberry Seed money, a
+    Flower Dance partner, something for the Luau soup, grange display items, a
+    fishing rod...). Tap a row to tick it off; ticks are kept for the day.
+    Things the game knows you've done tick themselves.
   - **When you're bored:** fish you haven't caught that are biting now, gift
     ideas, villagers you haven't talked to, museum and bundle items you're
     carrying, something to cook, new items to ship and your next mines goal.
     Tap a villager to open their Lookup Anything panel on the top screen.
+- **Bundles page:** the bundles you can work on this season first, with the
+  items already in your backpack in green (and how many you have of stacks you
+  only partly have). Everything that can't be found until a later season sits
+  in an "Upcoming" section at the bottom, grouped by season. A "Backpack only"
+  switch hides everything you aren't carrying.
 - **Backpack page removed.** The Overview replaces it, and the game's own
   toolbar covers the rest.
 - **Relationships page:** hearts in two rows, each villager's status ("Single",
@@ -226,16 +235,18 @@ published here. Instead, `tools/repack-apk.sh` downloads Joe's upstream v2.0
 release APK as an untouched base and applies everything Stardual Valley changes:
 
 - **`tools/smali_patches.py`** edits the upstream app's unpacked code: the new
-  Overview page, the removed Backpack page, the Relationships, Gift Guide, Map,
-  Crafting and Fields layouts, the tab order and the bundles fix. Each patch
+  Overview and Bundles pages, the removed Backpack page, the Relationships,
+  Gift Guide, Map, Crafting and Fields layouts, the tab order and the bundles
+  fix. Each patch
   stops the build if the code it expects has moved, so a new upstream release
   can't be patched in the wrong place.
 - **`overlay/src`** holds Stardual Valley's own Java classes (the start screen,
-  the Overview page, relationship lines and the Lookup Anything taps). They're
+  the Overview and Bundles pages, relationship lines and the Lookup Anything
+  taps). They're
   compiled against stand-in declarations of the upstream classes they call
   (`overlay/stubs`, not packaged) and added to the APK as an extra dex file.
-- **`overlay/assets`** holds the Overview page's layout
-  (`stardual/overview.html`).
+- **`overlay/assets`** holds the Overview and Bundles pages' layouts
+  (`stardual/overview.html`, `stardual/bundles.html`).
 - The app name, icon and start-screen art come from `src/main/res`.
 
 ```bash

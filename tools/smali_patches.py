@@ -698,3 +698,17 @@ hits = [i for i, l in enumerate(lines) if '"Backpack + map"' in l]
 assert len(hits) == 1, f"Backpack + map button: found {len(hits)}"
 lines[hits[0]] = lines[hits[0]].replace('"Backpack + map"', '"Overview + map"')
 write(path, lines)
+
+# 9. Bundles: the page is com.stardual.StardualBundles (overlay/src), which shows
+#    assets/stardual/bundles.html: this season's bundles first, backpack items picked out,
+#    the rest under "Upcoming". The mod sends it as an "sdv_bundles_page" message, which
+#    reaches the page through the hook in 8f. The tab's status line still comes from the
+#    app's own bundles data.
+path = find("StardewScreenKt$StardewScreen$8$1$1$1")
+lines = open(path).read().split("\n")
+hits = [i for i, l in enumerate(lines)
+        if "->StardewBundlesReferencePage(Lcom/wemu/session/secondscreen/StardewState;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V" in l]
+assert len(hits) == 1, f"bundles page call: found {len(hits)}"
+assert lines[hits[0]].strip().startswith("invoke-static {v0, v2, v3, v1, v4}"), lines[hits[0]]
+lines[hits[0]] = "    invoke-static {v3}, Lcom/stardual/StardualBundles;->page(Landroidx/compose/runtime/Composer;)V"
+write(path, lines)

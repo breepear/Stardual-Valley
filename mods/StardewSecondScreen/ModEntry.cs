@@ -86,6 +86,8 @@ public sealed class ModEntry : Mod
 
 	private Overview? _overview;
 
+	private Bundles? _bundles;
+
 	private readonly CommandQueue _commands = new CommandQueue();
 
 	private bool _hudHidden;
@@ -820,6 +822,9 @@ public sealed class ModEntry : Mod
 		{
 		}
 		_bridge.Broadcast("sdv_bundles", Json.Message("sdv_bundles", Json.Array("bundles", list)));
+		// Stardual: the Bundles page (this season first, with backpack counts).
+		_bundles ??= new Bundles(_sprites, Monitor);
+		_bridge.Broadcast("sdv_bundles_page", _bundles.Build());
 	}
 
 	private void SendAnimals()

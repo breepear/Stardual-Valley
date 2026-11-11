@@ -24,7 +24,7 @@ namespace StardewSecondScreen;
 /// Everything is worked out here, where the whole game is visible, and sent as one
 /// "sdv_overview" message with small pictures included, so the app only has to draw it.
 /// </summary>
-internal sealed class Overview
+internal sealed partial class Overview
 {
     private readonly Sprites _sprites;
     private readonly IMonitor _monitor;
@@ -72,6 +72,8 @@ internal sealed class Overview
         Try("machines", () => Machines(todo));
         Try("animals", () => Animals(player, todo));
         Try("quests", () => Quests(player, todo));
+        Try("plant", () => PlantDeadlines(player, todo));
+        Try("festivals", () => Festivals(player, todo));
         Try("town", () => Town(player, todo));
 
         Try("fish", () => Fish(player, bored));
@@ -383,20 +385,16 @@ internal sealed class Overview
             Item tool = player.toolBeingUpgraded.Value;
             todo.Add(new Row { Id = "tool", Icon = ItemIcon(tool.QualifiedItemId), Title = $"Pick up your {tool.DisplayName}", Detail = "Clint has finished it" });
         }
-        if (Game1.getLocationFromName("Forest") is Forest forest && forest.travelingMerchantDay)
+        if (Game1.getLocationFromName("Forest") is Forest forest && (forest.travelingMerchantDay || forest.ShouldTravelingMerchantVisitToday()))
         {
-            todo.Add(new Row { Id = "cart", Icon = Cursor("coin", 280, 412, 20, 16), Title = "The Traveling Cart is here", Detail = "Cindersap Forest, 6 am to 8 pm" });
-        }
-        if (Utility.isFestivalDay())
-        {
-            string name = "A festival";
-            try
+            List<string> forBundles = new();
+            try { forBundles = CartBundleItems(); } catch { }
+            todo.Add(new Row
             {
-                var dates = Game1.temporaryContent.Load<Dictionary<string, string>>("Data\\Festivals\\FestivalDates");
-                if (dates.TryGetValue(Game1.currentSeason + Game1.dayOfMonth, out string? found)) name = found;
-            }
-            catch { }
-            todo.Add(new Row { Id = "festival", Icon = Cursor("festival", 346, 392, 8, 8), Title = $"{name} is today", Detail = "Most shops are closed" });
+                Id = "cart", Icon = Cursor("coin", 280, 412, 20, 16), Title = "Visit the Traveling Cart",
+                Detail = "Cindersap Forest, 6 am to 8 pm" + (forBundles.Count > 0 ? ". Has " + Names(forBundles) + " for your bundles" : ""),
+                Tone = forBundles.Count > 0 ? "warn" : ""
+            });
         }
     }
 

@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Reflection;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -52,8 +54,20 @@ internal sealed class ModEntry : Mod
                 harmony.Patch(method, prefix: new HarmonyMethod(typeof(ModEntry), nameof(BeforeHudHitTest)));
             }
         }
+        // Last line of defense: A on its own never opens the main menu, whatever route the
+        // game or another mod takes to get there. Anything else A opens is logged.
+        MethodInfo? setMenu = AccessTools.PropertySetter(typeof(Game1), nameof(Game1.activeClickableMenu));
+        if (setMenu != null)
+        {
+            harmony.Patch(setMenu, prefix: new HarmonyMethod(typeof(ModEntry), nameof(BeforeMenuOpens)));
+        }
         // Android draws its own placement preview; the PC game under Cinderbox does not.
         helper.Events.Display.RenderedWorld += OnRenderedWorld;
+        // So Many Toolbars: keep its pinned items really in their slots (see PinnedSlots).
+        PinnedSlots.HideTooltips = _config.HideToolbarTooltips;
+        helper.Events.GameLoop.GameLaunched += (_, _) => PinnedSlots.Setup(helper, Monitor, harmony);
+        helper.Events.GameLoop.GameLaunched += (_, _) => AButton.Setup(helper, Monitor);
+        helper.Events.GameLoop.UpdateTicked += (_, e) => { if (e.IsMultipleOf(15)) PinnedSlots.Enforce(); };
         // Notice when the game draws its own preview, so the two never show together.
         new Harmony(ModManifest.UniqueID).Patch(
             AccessTools.Method(typeof(StardewValley.Object), nameof(StardewValley.Object.drawPlacementBounds)),
@@ -93,6 +107,44 @@ internal sealed class ModEntry : Mod
         {
         }
         return true;
+    }
+
+    private static int _aPressedAt = -100;
+
+    /// <summary>A menu is about to open. Stop the main menu when the only button behind it is A.</summary>
+    private static bool BeforeMenuOpens(StardewValley.Menus.IClickableMenu value)
+    {
+        try
+        {
+            if (value == null || Game1.activeClickableMenu != null || !Context.IsWorldReady || _instance == null)
+            {
+                return true;
+            }
+            GamePadState pad = Game1.input.GetGamePadState();
+            bool fromA = pad.IsButtonDown(Buttons.A) || Game1.ticks - _aPressedAt <= 3;
+            if (!fromA)
+            {
+                return true;
+            }
+            bool menuButton = pad.IsButtonDown(Buttons.Y) || pad.IsButtonDown(Buttons.B)
+                || pad.IsButtonDown(Buttons.Start) || pad.IsButtonDown(Buttons.Back);
+            bool realClick = Game1.input.GetMouseState().LeftButton == ButtonState.Pressed;
+            bool pointer = _instance._visibleFor > 0;
+            string from = string.Join(" < ", new System.Diagnostics.StackTrace(1).GetFrames()
+                .Select(f => f.GetMethod())
+                .Where(m => m != null && m.DeclaringType != null)
+                .Take(8)
+                .Select(m => m!.DeclaringType!.Name + "." + m.Name));
+            bool block = value is StardewValley.Menus.GameMenu && !menuButton && !realClick && !pointer;
+            _instance.Monitor.Log(
+                $"A opened {value.GetType().Name} (pointer {pointer}, mouse {Game1.getMouseX()},{Game1.getMouseY()}, "
+                + $"click {realClick}){(block ? " - blocked" : "")}: {from}", LogLevel.Debug);
+            return !block;
+        }
+        catch
+        {
+            return true;
+        }
     }
 
     private static bool CanUse() =>
@@ -317,7 +369,48 @@ internal sealed class ModEntry : Mod
                 return;
             }
         }
+#else
+        // The PC game's L1 / R1 rotate the whole toolbar to the next backpack row, which
+        // looked like the toolbar reshuffling itself. Do what they do on Android instead:
+        // L1 jumps to the first slot, R1 to the last item on the toolbar.
+        if (Context.IsPlayerFree && Game1.activeClickableMenu == null)
+        {
+            if (e.Button == SButton.LeftShoulder && _config.L1JumpsToFirstSlot)
+            {
+                Helper.Input.Suppress(e.Button);
+                if (Game1.player.CurrentToolIndex != 0)
+                {
+                    Game1.player.CurrentToolIndex = 0;
+                    Game1.playSound("toolSwap");
+                }
+                return;
+            }
+            if (e.Button == SButton.RightShoulder && _config.R1JumpsToLastItem)
+            {
+                Helper.Input.Suppress(e.Button);
+                Farmer farmer = Game1.player;
+                int slots = Math.Min(Math.Max(1, _config.ToolbarSlots), farmer.Items.Count);
+                int target = 0;
+                for (int i = slots - 1; i >= 0; i--)
+                {
+                    if (farmer.Items[i] != null) { target = i; break; }
+                }
+                if (farmer.CurrentToolIndex != target)
+                {
+                    farmer.CurrentToolIndex = target;
+                    Game1.playSound("toolSwap");
+                }
+                return;
+            }
+        }
 #endif
+        if (e.Button == SButton.ControllerA)
+        {
+            _aPressedAt = Game1.ticks;
+#if PC
+            if (Context.IsWorldReady && Game1.activeClickableMenu == null) AButton.OnAPressed();
+#endif
+        }
         if (e.Button != SButton.ControllerA || _visibleFor <= 0 || !CanUse() || !Context.IsPlayerFree)
         {
             return;
@@ -429,8 +522,23 @@ internal sealed class ModConfig
     public bool ShowPlacementPreview { get; set; } = true;
 
     /// <summary>L1 jumps to the first toolbar slot (instead of paging the backpack rows backwards).</summary>
+#if PC
+    // The PC game's L1 / R1 page through the backpack rows; keep that unless asked.
+    public bool L1JumpsToFirstSlot { get; set; } = false;
+#else
     public bool L1JumpsToFirstSlot { get; set; } = true;
+#endif
 
     /// <summary>R1 jumps 12 slots along the toolbar each press, wrapping to the start.</summary>
+#if PC
+    public bool R1JumpsToLastItem { get; set; } = false;
+#else
     public bool R1JumpsToLastItem { get; set; } = true;
+#endif
+
+    /// <summary>PC: how many slots the toolbar shows (R1 jumps to the last item among them).</summary>
+    public int ToolbarSlots { get; set; } = 12;
+
+    /// <summary>PC: hide So Many Toolbars' item tooltip, which shows in the top-left corner under Cinderbox.</summary>
+    public bool HideToolbarTooltips { get; set; } = true;
 }
