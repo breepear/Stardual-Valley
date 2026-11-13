@@ -195,8 +195,9 @@ internal sealed partial class Overview
 
     private void Birthdays(Farmer player, List<Row> todo)
     {
+        // Only villagers you've met: Sandy's birthday shouldn't show before the desert opens.
         NPC? npc = Utility.getTodaysBirthdayNPC();
-        if (npc != null)
+        if (npc != null && player.friendshipData.ContainsKey(npc.Name))
         {
             player.friendshipData.TryGetValue(npc.Name, out Friendship? f);
             bool given = f != null && f.GiftsToday > 0;
