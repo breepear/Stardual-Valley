@@ -15,6 +15,27 @@ calendar, live.
 **Adapted by [breepear](https://github.com/breepear)** from JoeCorrell's
 AYN Thor DualScreen Mods (see [Credits](#credits)).
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/screenshots/both-screens.png" width="520" alt="The AYN Thor's two screens: Stardew Valley on the top screen, and the Stardual Valley Overview page on the bottom screen with today's to-do list and ideas for when you're bored" />
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/people.png" alt="People page: villagers sorted by hearts, with the chats or loved gifts needed for the next heart and talk and gift checkboxes for today" /><br /><b>People:</b> hearts, birthdays, and how many chats or gifts to the next heart</td>
+    <td width="50%"><img src="docs/screenshots/gifts.png" alt="Gifts page: Abigail selected, showing where she is now, her schedule for the day, and her loved gifts tagged with whether they're in a chest" /><br /><b>Gifts:</b> tap a villager to see where they are today and which loved gifts you have</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/pokemon.png" alt="Pokémon page: seven Pokémon with species, hearts, home building, and whether each still needs training today" /><br /><b>Pokémon:</b> for the Pokemon Ranch mod, who still needs training</td>
+    <td><img src="docs/screenshots/animals.png" alt="Animals page: cows and chickens with hearts, who needs petting, and who's ready to milk" /><br /><b>Animals:</b> who needs petting and what's ready to collect</td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/fields.png" alt="Fields page: crops that need water today, with how many days until each one is ready" /><br /><b>Fields:</b> what needs water and when each crop is ready</td>
+    <td><img src="docs/screenshots/overview.png" alt="Overview page: today, tomorrow's weather, luck and battery, a to-do list and ideas for when you're bored" /><br /><b>Overview:</b> your day at a glance</td>
+  </tr>
+</table>
+
 ## Credits
 
 Stardual Valley is built on
